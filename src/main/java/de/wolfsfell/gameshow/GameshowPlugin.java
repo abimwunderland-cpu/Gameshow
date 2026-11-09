@@ -322,7 +322,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(teams.size()<2){say(s,"Mindestens zwei Teams erforderlich.");return;}
         for(String t:teams.keySet())for(int r=1;r<=5;r++)if(!raw.getOrDefault(t,Map.of()).containsKey(r)){say(s,"Fehlende Rohwertung: "+t+", Spiel "+r);return;}
         rankRound(s,5);List<String> order=new ArrayList<>(teams.keySet());order.sort((a,b)->{int c=Integer.compare(qualifying.getOrDefault(b,0),qualifying.getOrDefault(a,0));return c!=0?c:a.compareToIgnoreCase(b);});
-        if(qualifying.get(order.get(1)).equals(qualifying.get(order.get(2<order.size()?2:1)) && order.size()>2){say(s,"Gleichstand um Platz 2: erst Stechen durchführen und /wg finalist <Team1> <Team2> verwenden.");return;}
+        if(order.size()>2 && qualifying.get(order.get(1)).equals(qualifying.get(order.get(2)))){say(s,"Gleichstand um Platz 2: erst Stechen durchführen und /wg finalist <Team1> <Team2> verwenden.");return;}
         finalists=new ArrayList<>(order.subList(0,2));advantages.clear();for(String t:finalists)advantages.put(t,0);broadcast("FINALISTEN: §d"+finalists.get(0)+" §7vs §d"+finalists.get(1));saveState();
     }
     private void setupMystery(CommandSender s){
