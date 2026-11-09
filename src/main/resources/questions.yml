@@ -1,0 +1,451 @@
+questions:
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Diamantspitzhacke
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Bergungskompass
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Herz des Meeres
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Totem der Unsterblichkeit
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Phantomhaut
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Schnüffler-Ei
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Echo-Scherbe
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Kaninchenpfote
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Drachenatem
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Netheritbarren
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Enderkristall
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Verzauberter Goldapfel
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Schallplatte 11
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Amethystscherbe
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Prismarinscherbe
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Leuchtbeeren
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Schleimball
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Lohenrute
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Ghast-Träne
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Netherstern
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Elytren
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Dreizack
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Armbrust
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Kürbis
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Honigwabe
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Schneeball
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Enderauge
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Fermentiertes Spinnenauge
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Kupferbarren
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Kettenhemd
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Sattel
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Kompass
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Redstone-Komparator
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Beobachter
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Schmiedevorlage
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Froschlicht
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Mangroven-Propagule
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Ziegenhorn
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Bündel
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Windladung
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Schwerer Kern
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Streitkolben
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Prüfkammer-Schlüssel
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Ominöser Schlüssel
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Sculk-Sensor
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Katalysator
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Verzauberungstisch
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Leuchtfeuer
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Fackelblume
+- game: 1
+  question: Errate das Minecraft-Item auf dem Bildschirm!
+  answer: Kannenpflanze
+- game: 2
+  question: Womit stellt man einen Netherite-Barren her?
+  answer: 4 Netherite-Schrott und 4 Goldbarren
+  wrong:
+  - 4 Netherite-Schrott und 4 Eisenbarren
+  - 4 Antiker Schrott und 4 Diamanten
+  - 1 Netherstern und 8 Goldbarren
+- game: 2
+  question: Wie viele Obsidianblöcke braucht das kleinste Netherportal?
+  answer: '10'
+  wrong:
+  - '8'
+  - '12'
+  - '14'
+- game: 2
+  question: Welches Mob lässt eine Lohenrute fallen?
+  answer: Lohe
+  wrong:
+  - Ghast
+  - Wächter
+  - Wither-Skelett
+- game: 2
+  question: Welche Dimension beherbergt den Enderdrachen?
+  answer: Das Ende
+  wrong:
+  - Nether
+  - Oberwelt
+  - Deep Dark
+- game: 2
+  question: Was braucht ein Leuchtfeuer zur Aktivierung?
+  answer: Eine Pyramide aus Mineralblöcken
+  wrong:
+  - Einen Redstone-Block
+  - Vier Enderkristalle
+  - Ein Lagerfeuer
+- game: 2
+  question: Welcher Block fällt ohne Unterstützung nach unten?
+  answer: Sand
+  wrong:
+  - Stein
+  - Obsidian
+  - Grasblock
+- game: 2
+  question: Welche Farbe hat ein gewöhnlicher Creeper?
+  answer: Grün
+  wrong:
+  - Blau
+  - Rot
+  - Violett
+- game: 2
+  question: Welches Item zähmt einen Wolf?
+  answer: Knochen
+  wrong:
+  - Weizen
+  - Karotte
+  - Rohes Huhn
+- game: 2
+  question: Welcher Gegenstand hilft bei der Unterwasseratmung?
+  answer: Trank der Wasseratmung
+  wrong:
+  - Trank der Stärke
+  - Trank der Sprungkraft
+  - Trank der Schnelligkeit
+- game: 2
+  question: Wie heißt die unterirdische Struktur mit dem Endportal?
+  answer: Festung
+  wrong:
+  - Bastion
+  - Waldanwesen
+  - Dschungeltempel
+- game: 2
+  question: Welcher Gegenstand repariert Elytren am Amboss?
+  answer: Phantomhaut
+  wrong:
+  - Leder
+  - Papier
+  - Kupfer
+- game: 2
+  question: Welcher Mob wird durch Blöcke mit Sculk-Sensoren alarmiert?
+  answer: Warden
+  wrong:
+  - Enderman
+  - Blaze
+  - Shulker
+- game: 2
+  question: Was benötigt man für eine Fackel?
+  answer: Stock und Kohle
+  wrong:
+  - Stock und Eisen
+  - Stock und Kupfer
+  - Stock und Redstone
+- game: 2
+  question: Wie viele Bretter ergeben sich aus einem Holzstamm?
+  answer: '4'
+  wrong:
+  - '2'
+  - '6'
+  - '8'
+- game: 2
+  question: Welcher Mob kann einen Spieler teleportieren?
+  answer: Enderman
+  wrong:
+  - Zombie
+  - Skelett
+  - Schaf
+- game: 2
+  question: Welcher Gegenstand wird zum Brauen verwendet?
+  answer: Braustand
+  wrong:
+  - Steinsäge
+  - Schmiedetisch
+  - Kartentisch
+- game: 2
+  question: Welche Spitzhacke kann Obsidian abbauen?
+  answer: Diamantspitzhacke
+  wrong:
+  - Steinspitzhacke
+  - Goldspitzhacke
+  - Holzspitzhacke
+- game: 2
+  question: Was droppen Kühe unter anderem?
+  answer: Leder
+  wrong:
+  - Wolle
+  - Federn
+  - Tinte
+- game: 2
+  question: Was passiert beim Schlafen in einem Bett im Nether?
+  answer: Es explodiert
+  wrong:
+  - Man wacht in der Oberwelt auf
+  - Es wird Nacht
+  - Man teleportiert sich
+- game: 2
+  question: Welche Frucht teleportiert dich zufällig?
+  answer: Chorusfrucht
+  wrong:
+  - Süßbeere
+  - Glühbeere
+  - Melone
+- game: 2
+  question: Welches Werkzeug baut Blätter besonders schnell ab?
+  answer: Schere
+  wrong:
+  - Schaufel
+  - Spitzhacke
+  - Angel
+- game: 2
+  question: Welches Item wird aus drei Zuckerrohren gefertigt?
+  answer: Papier
+  wrong:
+  - Brot
+  - Buch
+  - Karte
+- game: 2
+  question: Welcher Mob hat einen Panzer?
+  answer: Schildkröte
+  wrong:
+  - Fuchs
+  - Biene
+  - Wolf
+- game: 2
+  question: Welcher Gegenstand hilft bei der Navigation zum Spawn?
+  answer: Kompass
+  wrong:
+  - Uhr
+  - Fernrohr
+  - Angel
+- game: 2
+  question: Welches Erz wird für Redstone-Schaltungen gebraucht?
+  answer: Redstone-Erz
+  wrong:
+  - Lapislazulierz
+  - Smaragderz
+  - Quarzerz
+- game: 2
+  question: Welche Pflanze wächst auf Seelensand?
+  answer: Netherwarze
+  wrong:
+  - Kaktus
+  - Bambus
+  - Seetang
+- game: 2
+  question: Was verwandelt einen Dorfbewohner in einen Zombie-Dorfbewohner?
+  answer: Ein Zombieangriff
+  wrong:
+  - Ein Blitz
+  - Ein Schneeball
+  - Ein Pfeil
+- game: 2
+  question: Welches Tier liefert Wolle?
+  answer: Schaf
+  wrong:
+  - Kuh
+  - Huhn
+  - Schwein
+- game: 2
+  question: Welcher Gegenstand kann Erfahrung speichern und reparieren helfen?
+  answer: Verzauberung Reparatur
+  wrong:
+  - Verzauberung Schärfe
+  - Verzauberung Effizienz
+  - Verzauberung Glück
+- game: 2
+  question: Welcher Mob schießt mit Pfeilen?
+  answer: Skelett
+  wrong:
+  - Zombie
+  - Creeper
+  - Schleim
+- game: 5
+  question: Wie lautet der Y-Wert des höchsten platzierbaren Blocks in der Oberwelt?
+  answer: '319'
+- game: 5
+  question: Wie viele Sekunden dauert ein voller Minecraft-Tag?
+  answer: '1200'
+- game: 5
+  question: Wie viele Herzen hat ein Warden?
+  answer: '250'
+- game: 5
+  question: Wie viele Herzen hat ein Spieler ohne Effekte?
+  answer: '10'
+- game: 5
+  question: Wie viele Gegenstände passen in einen vollen Stack?
+  answer: '64'
+- game: 5
+  question: Wie viele Slots hat eine einzelne Truhe?
+  answer: '27'
+- game: 5
+  question: Wie viele Slots hat eine Doppelkiste?
+  answer: '54'
+- game: 5
+  question: Wie viele Blöcke hoch ist das maximale Netherportal?
+  answer: '23'
+- game: 5
+  question: Wie viele Obsidianblöcke braucht ein vollständiger Verzauberungstisch?
+  answer: '4'
+- game: 5
+  question: Wie viele Hungerpunkte hat ein Spieler maximal?
+  answer: '20'
+- game: 5
+  question: Wie viele Sekunden dauert eine Minecraft-Stunde?
+  answer: '50'
+- game: 5
+  question: Wie viele Stacks sind 1024 Items?
+  answer: '16'
+- game: 5
+  question: Wie viele Blöcke umfasst ein Chunk in X-Richtung?
+  answer: '16'
+- game: 5
+  question: Wie viele Blöcke umfasst ein Chunk in Z-Richtung?
+  answer: '16'
+- game: 5
+  question: Wie viele Eisenbarren braucht man für einen Amboss?
+  answer: '31'
+- game: 5
+  question: Wie viele Eisenbarren braucht man für einen vollständigen Eisengolem?
+  answer: '36'
+- game: 5
+  question: Wie viele Diamanten braucht ein vollständiges Diamantrüstungsset?
+  answer: '24'
+- game: 5
+  question: Wie viele Netherite-Schrott benötigt man für zwei Netherite-Barren?
+  answer: '8'
+- game: 5
+  question: Wie viele Bretter braucht eine Werkbank?
+  answer: '4'
+- game: 5
+  question: Wie viele Wolle braucht ein Bett?
+  answer: '3'
+- game: 5
+  question: Wie viele Bücherregale braucht ein Level-30-Verzauberungstisch?
+  answer: '15'
+- game: 5
+  question: Wie viele Enderaugen kann ein Endportalrahmen maximal benötigen?
+  answer: '12'
+- game: 5
+  question: Wie viele Blöcke weit kann ein normaler Spieler ohne Effekte ungefähr springen?
+  answer: '4'
+- game: 5
+  question: Wie viele Slots hat die Hotbar?
+  answer: '9'
+- game: 5
+  question: Wie viele Eier kann man maximal in einem Stack tragen?
+  answer: '16'
+- game: 5
+  question: Wie viele Schneebälle kann man maximal in einem Stack tragen?
+  answer: '16'
+- game: 5
+  question: Wie viele Blöcke breit ist ein Chunk?
+  answer: '16'
+- game: 5
+  question: Wie viele Blöcke lang ist ein Chunk?
+  answer: '16'
+- game: 5
+  question: Wie viele Sekunden sind 5 Minuten?
+  answer: '300'
+- game: 5
+  question: Wie viele Minuten sind 3 Minecraft-Tage?
+  answer: '60'

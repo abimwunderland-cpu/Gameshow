@@ -1,0 +1,11 @@
+settings:
+  team-size: 3
+  max-teams: 8
+  selection-radius: 1.5
+  selection-hold-ticks: 20
+  parkour-start-points: 12
+  parkour-loss-every-seconds: 15
+  parkour-win-bonus: 2
+  mystery-duration-seconds: 300
+  mystery-values: [-2, -1, 0, 1, 2]
+  mystery-counts: [5, 10, 20, 10, 5]

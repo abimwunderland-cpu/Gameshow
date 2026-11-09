@@ -1,0 +1,14 @@
+name: WolfsfellGameshow
+version: '0.1.0'
+main: de.wolfsfell.gameshow.GameshowPlugin
+api-version: '1.21.11'
+author: WolfsfellTV
+softdepend: [BasketballCraft]
+commands:
+  wg:
+    description: Wolfsfell Gameshow Verwaltung
+    usage: /wg help
+permissions:
+  wg.admin:
+    description: Admin und Moderator
+    default: op
