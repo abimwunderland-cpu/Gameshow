@@ -48,6 +48,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private final Map<String, Location[]> cages = new HashMap<>();
     private final Map<String, Set<String>> neon = new HashMap<>();
     private final Map<String, UUID> neonDisplays = new HashMap<>();
+    private final Map<String, List<UUID>> neonEdges = new HashMap<>();
     private final Map<String,String> neonLights = new HashMap<>();
     private boolean studioLocked = false;
     private final String[] palette = {"PURPLE","BLUE","RED","GREEN","YELLOW","ORANGE","PINK","CYAN"};
@@ -103,7 +104,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         Bukkit.getScheduler().runTaskTimer(this,this::updateDisplays,40L,40L);
         getLogger().info("Wolfsfell Gameshow 0.1 loaded; " + teams.size() + " teams");
     }
-    @Override public void onDisable() { if(clock!=null)clock.cancel(); saveState(); }
+    @Override public void onDisable() { if(clock!=null)clock.cancel(); for(List<UUID> ids:neonEdges.values())for(UUID id:ids){org.bukkit.entity.Entity e=Bukkit.getEntity(id);if(e!=null)e.remove();} saveState(); }
     private String key(Location l) { return l.getWorld().getUID()+":"+l.getBlockX()+":"+l.getBlockY()+":"+l.getBlockZ(); }
     private String team(UUID u) { for(var e:teams.entrySet()) if(e.getValue().contains(u))return e.getKey(); return null; }
     private void say(CommandSender s,String msg) { s.sendMessage(ChatColor.LIGHT_PURPLE+"[Gameshow] "+ChatColor.WHITE+msg); }
@@ -307,6 +308,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             String[] lines=side.toString().split("\n");int n=Math.min(15,lines.length);
             for(int i=0;i<n;i++)obj.getScore(lines[i].substring(0,Math.min(35,lines[i].length()))+"§"+"0123456789abcdef".charAt(i)).setScore(n-i);
             p.setScoreboard(board);
+            p.setGlowing(mine!=null);
         }
     }
     private void loadState(){
@@ -429,6 +431,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         String k=key(block.getLocation());
         // Remove legacy full-block displays. They caused z-fighting and ugly filled geometry.
         UUID oldId=neonDisplays.remove(k);if(oldId!=null){org.bukkit.entity.Entity old=Bukkit.getEntity(oldId);if(old!=null)old.remove();}
+        List<UUID> edges=neonEdges.remove(k);if(edges!=null)for(UUID id:edges){org.bukkit.entity.Entity old=Bukkit.getEntity(id);if(old!=null)old.remove();}
         String oldLight=neonLights.remove(k);
         if(oldLight!=null){Block light=blockFromKey(oldLight);if(light!=null&&light.getType()==Material.LIGHT)light.setType(Material.AIR,false);}
         if(t==null){neon.remove(k);return;}
@@ -441,7 +444,49 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             data.setLevel(15);above.setBlockData(data,false);
             neonLights.put(k,key(above.getLocation()));
         }
-        // Minecraft light is neutral white. Team color comes from the original colored block.
+        // Four thin luminous edge accents sit above the selected block, avoiding full-face z-fighting.
+        org.bukkit.Color glowColor=org.bukkit.Color.fromRGB(155,89,230);
+        String shade=teamColors.getOrDefault(t,"PURPLE").toUpperCase(java.util.Locale.ROOT);
+        switch(shade){
+            case "RED" -> glowColor=org.bukkit.Color.fromRGB(255,70,85);
+            case "BLUE" -> glowColor=org.bukkit.Color.fromRGB(65,140,255);
+            case "GREEN" -> glowColor=org.bukkit.Color.fromRGB(65,230,125);
+            case "YELLOW" -> glowColor=org.bukkit.Color.fromRGB(255,220,55);
+            case "ORANGE" -> glowColor=org.bukkit.Color.fromRGB(255,150,45);
+            case "PINK" -> glowColor=org.bukkit.Color.fromRGB(255,95,195);
+            case "CYAN" -> glowColor=org.bukkit.Color.fromRGB(55,225,235);
+            default -> {}
+        }
+        Material edgeMaterial=switch(shade){
+            case "RED" -> Material.RED_STAINED_GLASS;
+            case "BLUE" -> Material.BLUE_STAINED_GLASS;
+            case "GREEN" -> Material.LIME_STAINED_GLASS;
+            case "YELLOW" -> Material.YELLOW_STAINED_GLASS;
+            case "ORANGE" -> Material.ORANGE_STAINED_GLASS;
+            case "PINK" -> Material.PINK_STAINED_GLASS;
+            case "CYAN" -> Material.CYAN_STAINED_GLASS;
+            default -> Material.PURPLE_STAINED_GLASS;
+        };
+        List<UUID> newEdges=new ArrayList<>();
+        final org.bukkit.Color finalGlow=glowColor;
+        final Material finalMaterial=edgeMaterial;
+        float[][] strips={{0.03f,1.012f,0.03f,0.94f,0.018f,0.025f},
+                          {0.03f,1.012f,0.945f,0.94f,0.018f,0.025f},
+                          {0.03f,1.012f,0.03f,0.025f,0.018f,0.94f},
+                          {0.945f,1.012f,0.03f,0.025f,0.018f,0.94f}};
+        for(float[] a:strips){
+            Location at=block.getLocation().add(a[0],a[1],a[2]);
+            BlockDisplay display=block.getWorld().spawn(at,BlockDisplay.class,d->{
+                d.setBlock(Bukkit.createBlockData(finalMaterial));
+                d.setTransformation(new org.bukkit.util.Transformation(
+                    new org.joml.Vector3f(0,0,0),new org.joml.Quaternionf(),
+                    new org.joml.Vector3f(a[3],a[4],a[5]),new org.joml.Quaternionf()));
+                d.setGlowing(true);d.setGlowColorOverride(finalGlow);
+                d.setPersistent(false);
+            });
+            newEdges.add(display.getUniqueId());
+        }
+        neonEdges.put(k,newEdges);
     }
     private void restoreNeon() {
         for(var e:new HashMap<>(neon).entrySet()) {
