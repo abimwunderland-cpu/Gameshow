@@ -50,6 +50,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private final Map<String, UUID> neonDisplays = new HashMap<>();
     private final Map<String, List<UUID>> neonEdges = new HashMap<>();
     private final Map<String,String> neonLights = new HashMap<>();
+    private final Map<String, Location[]> neonRegions = new HashMap<>();
+    private final Set<UUID> neonRegionDisplays = new HashSet<>();
     private boolean studioLocked = false;
     private final String[] palette = {"PURPLE","BLUE","RED","GREEN","YELLOW","ORANGE","PINK","CYAN"};
     private final NamespacedKey wandKey = new NamespacedKey(this,"setup_wand");
@@ -99,7 +101,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         Objects.requireNonNull(getCommand("wg")).setExecutor(this);
         Objects.requireNonNull(getCommand("wg")).setTabCompleter(this);
         loadQuestions();
-        Bukkit.getScheduler().runTaskLater(this, () -> { restoreNeon(); refreshAllArmor(); }, 20L);
+        Bukkit.getScheduler().runTaskLater(this, () -> { clearLegacyNeonDisplays(); restoreRegionNeon(); refreshAllArmor(); }, 20L);
         clock = Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         Bukkit.getScheduler().runTaskTimer(this,this::updateDisplays,40L,40L);
         getLogger().info("Wolfsfell Gameshow 0.1 loaded; " + teams.size() + " teams");
@@ -323,6 +325,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
         ConfigurationSection nl=y.getConfigurationSection("neon-lights");if(nl!=null)for(String k:nl.getKeys(false))neonLights.put(k,nl.getString(k));
         ConfigurationSection ng=y.getConfigurationSection("neon");if(ng!=null)for(String k:ng.getKeys(false))neon.put(k,new HashSet<>(ng.getStringList(k)));
+        ConfigurationSection nr=y.getConfigurationSection("neon-regions");if(nr!=null)for(String id:nr.getKeys(false)){Location a=nr.getLocation(id+".pos1"),b=nr.getLocation(id+".pos2");if(a!=null&&b!=null)neonRegions.put(id,new Location[]{a,b});}
         ConfigurationSection loc=y.getConfigurationSection("locations");if(loc!=null)for(String k:loc.getKeys(false)){Location l=loc.getLocation(k);if(l!=null)locations.put(k,l);}
         ConfigurationSection q=y.getConfigurationSection("qualifying");if(q!=null)for(String t:q.getKeys(false))qualifying.put(t,q.getInt(t));
         ConfigurationSection rr=y.getConfigurationSection("raw");if(rr!=null)for(String t:rr.getKeys(false)){ConfigurationSection r=rr.getConfigurationSection(t);if(r!=null)for(String n:r.getKeys(false))try{raw.computeIfAbsent(t,k->new HashMap<>()).put(Integer.parseInt(n),r.getInt(n));}catch(NumberFormatException ignored){}}
@@ -342,6 +345,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         for(var e:teamColors.entrySet())y.set("team-colors."+e.getKey(),e.getValue());
         for(var e:cages.entrySet()){y.set("cages."+e.getKey()+".pos1",e.getValue()[0]);y.set("cages."+e.getKey()+".pos2",e.getValue()[1]);}
         for(var e:neon.entrySet())y.set("neon."+e.getKey(),new ArrayList<>(e.getValue()));
+        for(var e:neonRegions.entrySet()){y.set("neon-regions."+e.getKey()+".pos1",e.getValue()[0]);y.set("neon-regions."+e.getKey()+".pos2",e.getValue()[1]);}
         y.set("studio-locked",studioLocked);for(var e:neonLights.entrySet())y.set("neon-lights."+e.getKey(),e.getValue());
         for(var e:qualifying.entrySet())y.set("qualifying."+e.getKey(),e.getValue());
         for(var e:advantages.entrySet())y.set("advantages."+e.getKey(),e.getValue());
@@ -415,7 +419,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private ItemStack setupWand(String mode) {
         ItemStack item=new ItemStack(Material.BLAZE_ROD);
         ItemMeta meta=item.getItemMeta();meta.setDisplayName("§d§lWolfsfell §fSetup-Wand §8["+mode+"]");
-        meta.setLore(List.of("§7Linksklick: Position 1", "§7Rechtsklick: Position 2", "§7Für Neon: Rechtsklick auf Block", "§8Nur für Admins"));
+        meta.setLore(List.of("§7Linksklick: Position 1", "§7Rechtsklick: Position 2", "§7Neon: /wg neon save <Team>", "§8Nur für Admins"));
         meta.getPersistentDataContainer().set(wandKey,PersistentDataType.STRING,mode);
         item.setItemMeta(meta);return item;
     }
@@ -427,37 +431,28 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         try {String[] a=k.split(":");World w=Bukkit.getWorld(UUID.fromString(a[0]));return w==null?null:w.getBlockAt(Integer.parseInt(a[1]),Integer.parseInt(a[2]),Integer.parseInt(a[3]));}
         catch(Exception ex){return null;}
     }
-    private void applyNeon(Block block, String t) {
-        String k=key(block.getLocation());
-        // Remove legacy full-block displays. They caused z-fighting and ugly filled geometry.
-        UUID oldId=neonDisplays.remove(k);if(oldId!=null){org.bukkit.entity.Entity old=Bukkit.getEntity(oldId);if(old!=null)old.remove();}
-        List<UUID> edges=neonEdges.remove(k);if(edges!=null)for(UUID id:edges){org.bukkit.entity.Entity old=Bukkit.getEntity(id);if(old!=null)old.remove();}
-        String oldLight=neonLights.remove(k);
-        if(oldLight!=null){Block light=blockFromKey(oldLight);if(light!=null&&light.getType()==Material.LIGHT)light.setType(Material.AIR,false);}
-        if(t==null){neon.remove(k);return;}
-        neon.put(k,new HashSet<>(List.of(t)));
-        // Real server light: invisible light block in free space above the selected block.
-        Block above=block.getRelative(0,1,0);
-        if(above.getType()==Material.AIR){
-            above.setType(Material.LIGHT,false);
-            org.bukkit.block.data.type.Light data=(org.bukkit.block.data.type.Light)above.getBlockData();
-            data.setLevel(15);above.setBlockData(data,false);
-            neonLights.put(k,key(above.getLocation()));
+    // Legacy neon: remove only plugin-style glowing BlockDisplays close to saved markers.
+    // Never globally remove all BlockDisplays: other map decorations may use them.
+    private int clearLegacyNeonDisplays() {
+        int removed=0;
+        for(String key:neon.keySet()) {
+            Block base=blockFromKey(key);if(base==null)continue;
+            for(org.bukkit.entity.Entity entity:base.getWorld().getNearbyEntities(base.getLocation().add(.5,.8,.5),1.8,2.0,1.8)) {
+                if(!(entity instanceof BlockDisplay display)||!display.isGlowing())continue;
+                Material m=display.getBlock().getMaterial();
+                if(!m.name().endsWith("STAINED_GLASS")&&!m.name().endsWith("CONCRETE"))continue;
+                entity.remove();removed++;
+            }
         }
-        // Four thin luminous edge accents sit above the selected block, avoiding full-face z-fighting.
-        org.bukkit.Color glowColor=org.bukkit.Color.fromRGB(155,89,230);
-        String shade=teamColors.getOrDefault(t,"PURPLE").toUpperCase(java.util.Locale.ROOT);
-        switch(shade){
-            case "RED" -> glowColor=org.bukkit.Color.fromRGB(255,70,85);
-            case "BLUE" -> glowColor=org.bukkit.Color.fromRGB(65,140,255);
-            case "GREEN" -> glowColor=org.bukkit.Color.fromRGB(65,230,125);
-            case "YELLOW" -> glowColor=org.bukkit.Color.fromRGB(255,220,55);
-            case "ORANGE" -> glowColor=org.bukkit.Color.fromRGB(255,150,45);
-            case "PINK" -> glowColor=org.bukkit.Color.fromRGB(255,95,195);
-            case "CYAN" -> glowColor=org.bukkit.Color.fromRGB(55,225,235);
-            default -> {}
+        for(String lightKey:neonLights.values()) {
+            Block block=blockFromKey(lightKey);
+            if(block!=null&&block.getType()==Material.LIGHT)block.setType(Material.AIR,false);
         }
-        Material edgeMaterial=switch(shade){
+        neon.clear();neonLights.clear();neonEdges.clear();neonDisplays.clear();
+        return removed;
+    }
+    private Material neonMaterial(String team) {
+        return switch(teamColors.getOrDefault(team,"PURPLE").toUpperCase(Locale.ROOT)) {
             case "RED" -> Material.RED_STAINED_GLASS;
             case "BLUE" -> Material.BLUE_STAINED_GLASS;
             case "GREEN" -> Material.LIME_STAINED_GLASS;
@@ -467,32 +462,63 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             case "CYAN" -> Material.CYAN_STAINED_GLASS;
             default -> Material.PURPLE_STAINED_GLASS;
         };
-        List<UUID> newEdges=new ArrayList<>();
-        final org.bukkit.Color finalGlow=glowColor;
-        final Material finalMaterial=edgeMaterial;
-        float[][] strips={{0.03f,1.012f,0.03f,0.94f,0.018f,0.025f},
-                          {0.03f,1.012f,0.945f,0.94f,0.018f,0.025f},
-                          {0.03f,1.012f,0.03f,0.025f,0.018f,0.94f},
-                          {0.945f,1.012f,0.03f,0.025f,0.018f,0.94f}};
-        for(float[] a:strips){
-            Location at=block.getLocation().add(a[0],a[1],a[2]);
-            BlockDisplay display=block.getWorld().spawn(at,BlockDisplay.class,d->{
-                d.setBlock(Bukkit.createBlockData(finalMaterial));
-                d.setTransformation(new org.bukkit.util.Transformation(
-                    new org.joml.Vector3f(0,0,0),new org.joml.Quaternionf(),
-                    new org.joml.Vector3f(a[3],a[4],a[5]),new org.joml.Quaternionf()));
-                d.setGlowing(true);d.setGlowColorOverride(finalGlow);
-                d.setPersistent(false);
-            });
-            newEdges.add(display.getUniqueId());
-        }
-        neonEdges.put(k,newEdges);
     }
-    private void restoreNeon() {
-        for(var e:new HashMap<>(neon).entrySet()) {
-            String[] a=e.getKey().split(":"); if(a.length!=4||e.getValue().isEmpty())continue;
-            try {World w=Bukkit.getWorld(UUID.fromString(a[0]));if(w!=null)applyNeon(w.getBlockAt(Integer.parseInt(a[1]),Integer.parseInt(a[2]),Integer.parseInt(a[3])),e.getValue().iterator().next());}
-            catch(Exception ignored){}
+    private void removeRegionDisplays(String team) {
+        for(World world:Bukkit.getWorlds())for(org.bukkit.entity.Entity e:world.getEntitiesByClass(BlockDisplay.class)) {
+            if(e.getScoreboardTags().contains("wg_neon_region")&&e.getScoreboardTags().contains("wg_neon_"+team.toLowerCase(Locale.ROOT)))e.remove();
+        }
+    }
+    private void addNeonStrip(World world,Material material,String team,double x,double y,double z,float dx,float dy,float dz) {
+        if(dx<=0||dy<=0||dz<=0)return;
+        BlockDisplay d=world.spawn(new Location(world,x,y,z),BlockDisplay.class,entity->{
+            entity.setBlock(Bukkit.createBlockData(material));
+            entity.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(),new org.joml.Quaternionf(),new org.joml.Vector3f(dx,dy,dz),new org.joml.Quaternionf()));
+            entity.setGlowing(true);
+            entity.addScoreboardTag("wg_neon_region");
+            entity.addScoreboardTag("wg_neon_"+team.toLowerCase(Locale.ROOT));
+            entity.setPersistent(true);
+        });
+        neonRegionDisplays.add(d.getUniqueId());
+    }
+    private void restoreRegionNeon() {for(String team:neonRegions.keySet())renderNeonRegion(team);}
+    private void renderNeonRegion(String team) {
+        Location[] area=neonRegions.get(team);if(area==null||!area[0].getWorld().equals(area[1].getWorld()))return;
+        removeRegionDisplays(team);
+        World w=area[0].getWorld();
+        double minX=Math.min(area[0].getBlockX(),area[1].getBlockX()),maxX=Math.max(area[0].getBlockX(),area[1].getBlockX())+1;
+        double minZ=Math.min(area[0].getBlockZ(),area[1].getBlockZ()),maxZ=Math.max(area[0].getBlockZ(),area[1].getBlockZ())+1;
+        double y=Math.max(area[0].getBlockY(),area[1].getBlockY())+0.98;
+        if(maxX-minX>80||maxZ-minZ>80)return;
+        Material m=neonMaterial(team);float thickness=.055f;
+        // Four continuous accents, not hundreds of overlapping outlines.
+        addNeonStrip(w,m,team,minX,y,minZ,(float)(maxX-minX),thickness,thickness);
+        addNeonStrip(w,m,team,minX,y,maxZ-thickness,(float)(maxX-minX),thickness,thickness);
+        addNeonStrip(w,m,team,minX,y,minZ,thickness,thickness,(float)(maxZ-minZ));
+        addNeonStrip(w,m,team,maxX-thickness,y,minZ,thickness,thickness,(float)(maxZ-minZ));
+        // Vanilla light blocks are invisible and white; only place in existing air.
+        for(int x=(int)minX;x<maxX;x+=4)for(int z:new int[]{(int)minZ,(int)maxZ-1})placeNeonLight(w,x,(int)y+1,z);
+        for(int z=(int)minZ;z<maxZ;z+=4)for(int x:new int[]{(int)minX,(int)maxX-1})placeNeonLight(w,x,(int)y+1,z);
+    }
+    private void placeNeonLight(World world,int x,int y,int z){
+        Block b=world.getBlockAt(x,y,z);
+        if(b.getType()!=Material.AIR)return;
+        b.setType(Material.LIGHT,false);
+        org.bukkit.block.data.type.Light data=(org.bukkit.block.data.type.Light)b.getBlockData();data.setLevel(15);b.setBlockData(data,false);
+        // Track generated light blocks to remove them safely when the region is cleared.
+        neonLights.put(key(b.getLocation()),key(b.getLocation()));
+    }
+    private void clearRegionNeon(String team) {
+        removeRegionDisplays(team);
+        Location[] area=neonRegions.remove(team);
+        if(area==null)return;
+        for(String k:new HashSet<>(neonLights.keySet())) {
+            Block b=blockFromKey(k);if(b==null)continue;
+            Location l=b.getLocation();
+            int x=l.getBlockX(),z=l.getBlockZ(),y=l.getBlockY();
+            int x0=Math.min(area[0].getBlockX(),area[1].getBlockX()),x1=Math.max(area[0].getBlockX(),area[1].getBlockX())+1;
+            int z0=Math.min(area[0].getBlockZ(),area[1].getBlockZ()),z1=Math.max(area[0].getBlockZ(),area[1].getBlockZ())+1;
+            int expectedY=Math.max(area[0].getBlockY(),area[1].getBlockY())+1;
+            if(l.getWorld().equals(area[0].getWorld())&&x>=x0&&x<=x1&&z>=z0&&z<=z1&&y==expectedY){if(b.getType()==Material.LIGHT)b.setType(Material.AIR,false);neonLights.remove(k);}
         }
     }
     @EventHandler public void setupClick(PlayerInteractEvent e) {
@@ -502,13 +528,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(e.getClickedBlock()==null)return;
         e.setCancelled(true);
         Block b=e.getClickedBlock();
-        if(mode.startsWith("neon:")) {
-            if(e.getAction()==Action.RIGHT_CLICK_BLOCK){
-                String t=mode.substring(5);if(!teams.containsKey(t))return;
-                String k=key(b.getLocation());boolean remove=neon.containsKey(k)&&neon.get(k).contains(t);
-                applyNeon(b,remove?null:t);say(p,remove?"Neon entfernt.":"Neon für "+t+" gesetzt.");saveState();
-            }return;
-        }
+
         if(e.getAction()==Action.LEFT_CLICK_BLOCK){pos1.put(p.getUniqueId(),b.getLocation());say(p,"§dPOS1 §f"+b.getX()+" "+b.getY()+" "+b.getZ());}
         else if(e.getAction()==Action.RIGHT_CLICK_BLOCK){pos2.put(p.getUniqueId(),b.getLocation());say(p,"§dPOS2 §f"+b.getX()+" "+b.getY()+" "+b.getZ());}
     }
@@ -523,6 +543,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(args.length==0 || args[0].equalsIgnoreCase("help")){
             say(sender,"/wg team create|delete|color|join|leave|list | /wg wand region | /wg wand neon <Team> | /wg region save cage:<Team>");
             say(sender,"/wg studio lock|unlock | /wg region save selection:<Team> | /wg select on/off");
+            say(sender,"/wg neon save <Team> | /wg neon clear <Team> | /wg neon cleanup");
             say(sender,"/wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
             say(sender,"/wg raw <Team> <Spiel 1-5> <Wert> | /wg rank | /wg qualify | /wg finalist <A> <B>");
             say(sender,"/wg basket <Team> <0-6> | /wg parkour finish | /wg chest add|clear|shuffle|stop");
@@ -532,8 +553,26 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(cmd.equals("wand")&&admin(sender)) {
             if(!(sender instanceof Player p))return true;
             String mode=args.length>=2?args[1].toLowerCase(Locale.ROOT):"region";
-            if(mode.equals("neon")&&args.length>=3)mode="neon:"+args[2];
+            if(mode.equals("neon"))mode="region";
             p.getInventory().addItem(setupWand(mode));say(sender,"Setup-Wand erhalten: "+mode);return true;
+        }
+        if(cmd.equals("neon")&&admin(sender)) {
+            if(args.length>=2&&args[1].equalsIgnoreCase("cleanup")) {
+                int count=clearLegacyNeonDisplays();saveState();say(sender,"Alte Neon-Displays entfernt: "+count+". Andere Displays wurden nicht global gelöscht.");return true;
+            }
+            if(args.length>=3&&args[1].equalsIgnoreCase("clear")) {
+                String team=teams.keySet().stream().filter(t->t.equalsIgnoreCase(args[2])).findFirst().orElse(args[2]);
+                clearRegionNeon(team);saveState();say(sender,"Neonregion für "+team+" entfernt.");return true;
+            }
+            if(args.length>=3&&args[1].equalsIgnoreCase("save")&&sender instanceof Player p) {
+                String team=teams.keySet().stream().filter(t->t.equalsIgnoreCase(args[2])).findFirst().orElse(null);
+                if(team==null){say(sender,"Team existiert nicht.");return true;}
+                Location a=pos1.get(p.getUniqueId()),b=pos2.get(p.getUniqueId());
+                if(a==null||b==null||!a.getWorld().equals(b.getWorld())){say(sender,"Erst POS1 und POS2 mit /wg wand region markieren.");return true;}
+                clearRegionNeon(team);neonRegions.put(team,new Location[]{a.clone(),b.clone()});renderNeonRegion(team);saveState();
+                say(sender,"Vier durchgehende Neonstreifen für "+team+" gesetzt.");return true;
+            }
+            say(sender,"/wg neon save <Team> | clear <Team> | cleanup");return true;
         }
         if(cmd.equals("region")&&admin(sender)&&sender instanceof Player p&&args.length>=3&&args[1].equalsIgnoreCase("save")){
             Location a=pos1.get(p.getUniqueId()),b=pos2.get(p.getUniqueId());
@@ -555,9 +594,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 String t=args[2];if(!teams.containsKey(t)){say(sender,"Team nicht gefunden.");return true;}
                 teams.remove(t);qualifying.remove(t);advantages.remove(t);raw.remove(t);selected.remove(t);quizScores.remove(t);
                 cages.remove("cage:"+t.toLowerCase(Locale.ROOT));cages.remove("selection:"+t.toLowerCase(Locale.ROOT));locations.remove("team:"+t);finalists.remove(t);
-                for(String k:new HashSet<>(neon.keySet()))if(neon.get(k).contains(t)){
-                    String[] a=k.split(":");try{World w=Bukkit.getWorld(UUID.fromString(a[0]));if(w!=null)applyNeon(w.getBlockAt(Integer.parseInt(a[1]),Integer.parseInt(a[2]),Integer.parseInt(a[3])),null);}catch(Exception ignored){}
-                }
+                clearRegionNeon(t);
                 say(sender,"Team "+t+" gelöscht.");saveState();refreshAllArmor();return true;
             }
             if(args[1].equalsIgnoreCase("color")&&args.length>=4){
@@ -652,11 +689,13 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         say(p,"Gekauft: "+item+" für "+cost+" Punkte. Rest: "+advantages.get(t));p.playSound(p.getLocation(),"wolfsfell.purchase",1f,1f);saveState();
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
-        if(args.length==1)return Arrays.stream(new String[]{"help","status","studio","team","wand","region","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzz","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==1)return Arrays.stream(new String[]{"help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzz","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         if(args.length==2&&args[0].equalsIgnoreCase("target"))return List.of("add");
         if(args.length==2&&args[0].equalsIgnoreCase("checkpoint"))return List.of("add","clear");
         if(args.length==2&&args[0].equalsIgnoreCase("team"))return List.of("create","join","leave","delete","color","list");
-        if(args.length==2&&args[0].equalsIgnoreCase("wand"))return List.of("region","neon");
+        if(args.length==2&&args[0].equalsIgnoreCase("wand"))return List.of("region");
+        if(args.length==2&&args[0].equalsIgnoreCase("neon"))return List.of("save","clear","cleanup");
+        if(args.length==3&&args[0].equalsIgnoreCase("neon"))return new ArrayList<>(teams.keySet());
         if(args.length==2&&args[0].equalsIgnoreCase("region"))return List.of("save");
         if(args.length==3&&args[0].equalsIgnoreCase("wand")&&args[1].equalsIgnoreCase("neon"))return new ArrayList<>(teams.keySet());
         if(args.length==3&&args[0].equalsIgnoreCase("team")&&List.of("delete","color").contains(args[1].toLowerCase(Locale.ROOT)))return new ArrayList<>(teams.keySet());
