@@ -481,23 +481,68 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         neonRegionDisplays.add(d.getUniqueId());
     }
     private void restoreRegionNeon() {for(String team:neonRegions.keySet())renderNeonRegion(team);}
-    private void renderNeonRegion(String team) {
-        Location[] area=neonRegions.get(team);if(area==null||!area[0].getWorld().equals(area[1].getWorld()))return;
-        removeRegionDisplays(team);
+    // Trace only exposed top edges of solid blocks, merge adjacent runs.
+    // No per-block outlines and no large translucent display surfaces.
+    private void renderNeonRegion(String id) {
+        Location[] area=neonRegions.get(id);
+        if(area==null||!area[0].getWorld().equals(area[1].getWorld()))return;
+        removeRegionDisplays(id);
         World w=area[0].getWorld();
-        double minX=Math.min(area[0].getBlockX(),area[1].getBlockX()),maxX=Math.max(area[0].getBlockX(),area[1].getBlockX())+1;
-        double minZ=Math.min(area[0].getBlockZ(),area[1].getBlockZ()),maxZ=Math.max(area[0].getBlockZ(),area[1].getBlockZ())+1;
-        double y=Math.max(area[0].getBlockY(),area[1].getBlockY())+0.98;
-        if(maxX-minX>80||maxZ-minZ>80)return;
-        Material m=neonMaterial(team);float thickness=.055f;
-        // Four continuous accents, not hundreds of overlapping outlines.
-        addNeonStrip(w,m,team,minX,y,minZ,(float)(maxX-minX),thickness,thickness);
-        addNeonStrip(w,m,team,minX,y,maxZ-thickness,(float)(maxX-minX),thickness,thickness);
-        addNeonStrip(w,m,team,minX,y,minZ,thickness,thickness,(float)(maxZ-minZ));
-        addNeonStrip(w,m,team,maxX-thickness,y,minZ,thickness,thickness,(float)(maxZ-minZ));
-        // Vanilla light blocks are invisible and white; only place in existing air.
-        for(int x=(int)minX;x<maxX;x+=4)for(int z:new int[]{(int)minZ,(int)maxZ-1})placeNeonLight(w,x,(int)y+1,z);
-        for(int z=(int)minZ;z<maxZ;z+=4)for(int x:new int[]{(int)minX,(int)maxX-1})placeNeonLight(w,x,(int)y+1,z);
+        int x0=Math.min(area[0].getBlockX(),area[1].getBlockX());
+        int x1=Math.max(area[0].getBlockX(),area[1].getBlockX());
+        int y0=Math.min(area[0].getBlockY(),area[1].getBlockY());
+        int y1=Math.max(area[0].getBlockY(),area[1].getBlockY());
+        int z0=Math.min(area[0].getBlockZ(),area[1].getBlockZ());
+        int z1=Math.max(area[0].getBlockZ(),area[1].getBlockZ());
+        if(x1-x0>48||z1-z0>48||y1-y0>16)return;
+        String team=id.startsWith("selection:")?id.substring("selection:".length()):id;
+        Material m=neonMaterial(team);
+        final float t=.045f;
+        int strips=0;
+        // Each visible top edge is merged into a single straight strip.
+        // Only edges bordering air are drawn, so internal seams are omitted.
+        for(int y=y0;y<=y1&&strips<160;y++) {
+            for(int z=z0;z<=z1&&strips<160;z++) {
+                for(int side=-1;side<=1;side+=2) {
+                    int start=-1;
+                    for(int x=x0;x<=x1+1;x++) {
+                        boolean active=x<=x1 && exposedNeonEdge(w,x,y,z,0,side);
+                        if(active&&start<0)start=x;
+                        if(!active&&start>=0) {
+                            addNeonStrip(w,m,id,start,y+1.006,z+(side==1?1:0)-t/2,(float)(x-start),t,t);
+                            strips++;start=-1;
+                        }
+                    }
+                }
+            }
+            for(int x=x0;x<=x1&&strips<160;x++) {
+                for(int side=-1;side<=1;side+=2) {
+                    int start=-1;
+                    for(int z=z0;z<=z1+1;z++) {
+                        boolean active=z<=z1 && exposedNeonEdge(w,x,y,z,1,side);
+                        if(active&&start<0)start=z;
+                        if(!active&&start>=0) {
+                            addNeonStrip(w,m,id,x+(side==1?1:0)-t/2,y+1.006,start,t,t,(float)(z-start));
+                            strips++;start=-1;
+                        }
+                    }
+                }
+            }
+        }
+        // Light is independent of the display glow. Never replace solid blocks.
+        for(int x=x0;x<=x1;x+=4)for(int z=z0;z<=z1;z+=4) {
+            for(int y=y1+1;y>=y0;y--) {
+                if(w.getBlockAt(x,y,z).getType()==Material.AIR) {
+                    placeNeonLight(w,x,y,z);break;
+                }
+            }
+        }
+    }
+    private boolean exposedNeonEdge(World w,int x,int y,int z,int axis,int side) {
+        Block b=w.getBlockAt(x,y,z);
+        if(!b.getType().isSolid()||!w.getBlockAt(x,y+1,z).isEmpty())return false;
+        Block neighbor=axis==0?w.getBlockAt(x,y,z+side):w.getBlockAt(x+side,y,z);
+        return neighbor.isEmpty()||!neighbor.getType().isSolid();
     }
     private void placeNeonLight(World world,int x,int y,int z){
         Block b=world.getBlockAt(x,y,z);
@@ -543,7 +588,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(args.length==0 || args[0].equalsIgnoreCase("help")){
             say(sender,"/wg team create|delete|color|join|leave|list | /wg wand region | /wg wand neon <Team> | /wg region save cage:<Team>");
             say(sender,"/wg studio lock|unlock | /wg region save selection:<Team> | /wg select on/off");
-            say(sender,"/wg neon save <Team> | /wg neon clear <Team> | /wg neon cleanup");
+            say(sender,"/wg neon save <Team> | /wg neon selection <Team> | /wg neon clear <Team> | /wg neon cleanup");
             say(sender,"/wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
             say(sender,"/wg raw <Team> <Spiel 1-5> <Wert> | /wg rank | /wg qualify | /wg finalist <A> <B>");
             say(sender,"/wg basket <Team> <0-6> | /wg parkour finish | /wg chest add|clear|shuffle|stop");
@@ -570,16 +615,25 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 Location a=pos1.get(p.getUniqueId()),b=pos2.get(p.getUniqueId());
                 if(a==null||b==null||!a.getWorld().equals(b.getWorld())){say(sender,"Erst POS1 und POS2 mit /wg wand region markieren.");return true;}
                 clearRegionNeon(team);neonRegions.put(team,new Location[]{a.clone(),b.clone()});renderNeonRegion(team);saveState();
-                say(sender,"Vier durchgehende Neonstreifen für "+team+" gesetzt.");return true;
+                say(sender,"Sichtbare Blockkanten für "+team+" markiert.");return true;
             }
-            say(sender,"/wg neon save <Team> | clear <Team> | cleanup");return true;
+            if(args.length>=3&&args[1].equalsIgnoreCase("selection")&&sender instanceof Player p) {
+                String team=teams.keySet().stream().filter(t->t.equalsIgnoreCase(args[2])).findFirst().orElse(null);
+                if(team==null){say(sender,"Team existiert nicht.");return true;}
+                Location[] zone=cages.get("selection:"+team.toLowerCase(Locale.ROOT));
+                if(zone==null){say(sender,"Zuerst /wg region save selection:"+team+" ausführen.");return true;}
+                String id="selection:"+team;
+                clearRegionNeon(id);neonRegions.put(id,new Location[]{zone[0].clone(),zone[1].clone()});
+                renderNeonRegion(id);saveState();say(sender,"Auswahlplatz von "+team+" leuchtet jetzt.");return true;
+            }
+            say(sender,"/wg neon save <Team> | selection <Team> | clear <Team> | cleanup");return true;
         }
         if(cmd.equals("region")&&admin(sender)&&sender instanceof Player p&&args.length>=3&&args[1].equalsIgnoreCase("save")){
             Location a=pos1.get(p.getUniqueId()),b=pos2.get(p.getUniqueId());
             if(a==null||b==null||!a.getWorld().equals(b.getWorld())){say(sender,"Erst POS1 und POS2 mit der Wand markieren.");return true;}
             String id=args[2].toLowerCase(Locale.ROOT);
             if((id.startsWith("cage:")||id.startsWith("selection:")) && teams.keySet().stream().noneMatch(t->t.equalsIgnoreCase(id.substring(id.indexOf(':')+1)))){say(sender,"Team existiert nicht.");return true;}
-            cages.put(id,new Location[]{a.clone(),b.clone()});saveState();say(sender,"Region "+id+" gespeichert.");return true;
+            cages.put(id,new Location[]{a.clone(),b.clone()});if(id.startsWith("selection:")){String team=teams.keySet().stream().filter(t->t.equalsIgnoreCase(id.substring(10))).findFirst().orElse(null);if(team!=null&&neonRegions.containsKey("selection:"+team)){clearRegionNeon("selection:"+team);neonRegions.put("selection:"+team,new Location[]{a.clone(),b.clone()});renderNeonRegion("selection:"+team);}}saveState();say(sender,"Region "+id+" gespeichert.");return true;
         }
         if(cmd.equals("studio")&&admin(sender)){
             if(args.length<2){say(sender,"/wg studio lock|unlock|status");return true;}
@@ -594,7 +648,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 String t=args[2];if(!teams.containsKey(t)){say(sender,"Team nicht gefunden.");return true;}
                 teams.remove(t);qualifying.remove(t);advantages.remove(t);raw.remove(t);selected.remove(t);quizScores.remove(t);
                 cages.remove("cage:"+t.toLowerCase(Locale.ROOT));cages.remove("selection:"+t.toLowerCase(Locale.ROOT));locations.remove("team:"+t);finalists.remove(t);
-                clearRegionNeon(t);
+                clearRegionNeon(t);clearRegionNeon("selection:"+t);
                 say(sender,"Team "+t+" gelöscht.");saveState();refreshAllArmor();return true;
             }
             if(args[1].equalsIgnoreCase("color")&&args.length>=4){
@@ -694,7 +748,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(args.length==2&&args[0].equalsIgnoreCase("checkpoint"))return List.of("add","clear");
         if(args.length==2&&args[0].equalsIgnoreCase("team"))return List.of("create","join","leave","delete","color","list");
         if(args.length==2&&args[0].equalsIgnoreCase("wand"))return List.of("region");
-        if(args.length==2&&args[0].equalsIgnoreCase("neon"))return List.of("save","clear","cleanup");
+        if(args.length==2&&args[0].equalsIgnoreCase("neon"))return List.of("save","selection","clear","cleanup");
         if(args.length==3&&args[0].equalsIgnoreCase("neon"))return new ArrayList<>(teams.keySet());
         if(args.length==2&&args[0].equalsIgnoreCase("region"))return List.of("save");
         if(args.length==3&&args[0].equalsIgnoreCase("wand")&&args[1].equalsIgnoreCase("neon"))return new ArrayList<>(teams.keySet());
