@@ -7,6 +7,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
@@ -451,39 +452,43 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
     }
 
-    // Visual colored caps are non-interactive BlockDisplays: the registered vanilla
-    // stone buttons beneath them keep handling all real buzzer clicks unchanged.
-    private Material buzzerColorMaterial(String team){
-        return switch(teamColors.getOrDefault(team,"PURPLE").toUpperCase(Locale.ROOT)){
-            case "RED" -> Material.RED_CONCRETE;
-            case "BLUE" -> Material.BLUE_CONCRETE;
-            case "GREEN" -> Material.LIME_CONCRETE;
-            case "YELLOW" -> Material.YELLOW_CONCRETE;
-            case "ORANGE" -> Material.ORANGE_CONCRETE;
-            case "PINK" -> Material.PINK_CONCRETE;
-            case "CYAN" -> Material.CYAN_CONCRETE;
-            case "WHITE" -> Material.WHITE_CONCRETE;
-            default -> Material.PURPLE_CONCRETE;
+    // Custom 3D models from the separate resource pack. ItemDisplay has no
+    // interaction hitbox: the original stone button still receives the click.
+    private String buzzerModelColor(String team){
+        String color=teamColors.getOrDefault(team,"PURPLE").toLowerCase(Locale.ROOT);
+        return switch(color){
+            case "red","blue","green","yellow","orange","pink","cyan","white","purple" -> color;
+            default -> "purple";
         };
     }
     private void refreshBuzzerColors(){
-        for(World world:Bukkit.getWorlds())for(BlockDisplay display:world.getEntitiesByClass(BlockDisplay.class))
-            if(display.getScoreboardTags().contains("wg_buzzer_color"))display.remove();
+        for(World world:Bukkit.getWorlds()){
+            for(BlockDisplay display:world.getEntitiesByClass(BlockDisplay.class))
+                if(display.getScoreboardTags().contains("wg_buzzer_color"))display.remove();
+            for(ItemDisplay display:world.getEntitiesByClass(ItemDisplay.class))
+                if(display.getScoreboardTags().contains("wg_buzzer_color"))display.remove();
+        }
         for(var entry:buzzerBlocks.entrySet()){
             String[] coords=entry.getValue().split(":");
             if(coords.length!=4)continue;
             try{
-                UUID uid=UUID.fromString(coords[0]);
-                World world=Bukkit.getWorld(uid);if(world==null)continue;
+                World world=Bukkit.getWorld(UUID.fromString(coords[0]));
+                if(world==null)continue;
                 int x=Integer.parseInt(coords[1]),y=Integer.parseInt(coords[2]),z=Integer.parseInt(coords[3]);
                 Block block=world.getBlockAt(x,y,z);
                 if(!block.getType().name().endsWith("BUTTON"))continue;
-                Material color=buzzerColorMaterial(entry.getKey());
-                world.spawn(block.getLocation().add(.19,.28,.19),BlockDisplay.class,display->{
-                    display.setBlock(color.createBlockData());
+                String model="buzzer_"+buzzerModelColor(entry.getKey());
+                ItemStack item=new ItemStack(Material.PAPER);
+                ItemMeta meta=item.getItemMeta();
+                meta.setItemModel(new NamespacedKey("wolfsfell",model));
+                item.setItemMeta(meta);
+                // Floating display directly above the saved button.
+                world.spawn(block.getLocation().add(.5,.35,.5),ItemDisplay.class,display->{
+                    display.setItemStack(item);
+                    display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
                     display.setTransformation(new org.bukkit.util.Transformation(
                         new org.joml.Vector3f(0,0,0),new org.joml.AxisAngle4f(),
-                        new org.joml.Vector3f(.62f,.10f,.62f),new org.joml.AxisAngle4f()));
+                        new org.joml.Vector3f(.72f,.72f,.72f),new org.joml.AxisAngle4f()));
                     display.addScoreboardTag("wg_buzzer_color");
                     display.setPersistent(false);
                 });
