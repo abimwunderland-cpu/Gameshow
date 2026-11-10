@@ -98,6 +98,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private boolean running = false, selectionEnabled = false;
     private long startMillis = 0;
     private BukkitTask clock;
+    private boolean game1QuestionActive=false;
+    private long game1RoundEnds=0;
 
     @Override public void onEnable() {
         saveDefaultConfig(); stateFile = new File(getDataFolder(),"state.yml"); loadState();
@@ -135,6 +137,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
 
         if(!running)return;
+        if(game==1 && game1QuestionActive && buzzed==null && System.currentTimeMillis()>=game1RoundEnds){game1QuestionActive=false;broadcast("§eRunde abgelaufen! Antwort: "+correctAnswer);Bukkit.getScheduler().runTaskLater(this,()->{if(running&&game==1)nextQuestion();},60L);}
         if(game==1 && buzzed!=null && System.currentTimeMillis()>=buzzDeadline){
             broadcast("§c5 Sekunden vorbei! §7Buzzer wieder frei.");buzzed=null;buzzDeadline=0;
         }
@@ -190,7 +193,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     private void stopParkour(){if(!running || game!=7)return;for(String t:finalists)advantages.merge(t,parkourScores.getOrDefault(t,0),Integer::sum);running=false;broadcast("Parkour beendet! Vorteile wurden gutgeschrieben.");saveState();}
     private void buzz(Player p){
-        if(!running || game!=1 || buzzed!=null)return;
+        if(!running || game!=1 || buzzed!=null || !game1QuestionActive)return;
         String t=team(p.getUniqueId());
         if(t==null || !Objects.equals(selected.get(t),p.getUniqueId()) || attemptedBuzzers.contains(p.getUniqueId()))return;
         attemptedBuzzers.add(p.getUniqueId());buzzed=p.getUniqueId();buzzDeadline=System.currentTimeMillis()+5000L;
@@ -232,11 +235,12 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         Bukkit.getScheduler().runTask(this,()->{
             if(!running)return;
             if(game==1){
+                if(!p.getUniqueId().equals(buzzed) || System.currentTimeMillis()>buzzDeadline)return;
                 if(msg.equalsIgnoreCase(correctAnswer)){
                     int pts=1;
                     quizScores.merge(t,pts,Integer::sum);individual.merge(p.getUniqueId(),pts,Integer::sum);
                     broadcast("§a"+t+" – RICHTIG! §a+1 Punkt §7("+p.getName()+") §f– "+correctAnswer);
-                    buzzed=null;buzzDeadline=0;nextQuestion();
+                    buzzed=null;buzzDeadline=0;game1QuestionActive=false;Bukkit.getScheduler().runTaskLater(this,()->{if(running&&game==1)nextQuestion();},60L);
                 } else {broadcast("§cFalsch! §7"+t+" darf diese Runde nicht mehr buzzern.");buzzed=null;buzzDeadline=0;}
             }else if(game==2){
                 String v=msg.toUpperCase(Locale.ROOT);
@@ -271,7 +275,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         getLogger().info("Loaded "+questions.size()+" quiz entries");
     }
     private void nextQuestion(){
-        if(questionNumber>=10){running=false;answerDeadline=0;broadcast("§d10 Runden beendet! §7Mit /wg finishround die Punkte speichern.");return;}
+        if(questionNumber>=10){running=false;game1QuestionActive=false;answerDeadline=0;broadcast("§d10 Runden beendet! §7Mit /wg finishround die Punkte speichern.");return;}
         List<QuizQuestion> pool=questions.stream().filter(q->q.game()==game&&!usedQuestions.contains(q.game()+":"+q.answer())).toList();
         if(pool.isEmpty()){broadcast("§dFragenpool für Spiel "+game+" aufgebraucht.");running=false;return;}
         QuizQuestion q=pool.get(random.nextInt(pool.size()));usedQuestions.add(q.game()+":"+q.answer());questionNumber++;
@@ -281,7 +285,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         broadcast("§dFrage "+questionNumber+": §f"+currentPrompt);
         if(game==2)for(int i=0;i<4;i++)broadcast("§7"+(char)('A'+i)+") §f"+choices[i]);
         if(game==5)broadcast("§7Schätzung im Chat eingeben!");
-        if(game==1)broadcast("§7Drücke deinen Team-Buzzer! Danach 5 Sekunden zum Antworten. §c(Bildschirm noch nicht implementiert)");
+        if(game==1){game1QuestionActive=true;game1RoundEnds=System.currentTimeMillis()+30000L;broadcast("§7Team-Buzzer drücken! 5 Sekunden für die Antwort, ein Versuch pro Spieler. (Bildschirm folgt)");}
     }
     private void resolveQuestion(){
         if(game==2){
@@ -739,7 +743,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 case "select" -> {if(args.length<2)break;selectionEnabled=args[1].equalsIgnoreCase("on");selectionTicks.clear();if(selectionEnabled)selected.clear();say(sender,"Spielerwahl "+(selectionEnabled?"aktiv":"aus"));return true;}
                 case "game" -> {if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;running=false;game=g;selected.clear();selectionTicks.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]);saveState();return true;}
                 case "start" -> {if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;
-                    if(game==1||game==2||game==5){quizScores.clear();usedQuestions.clear();questionNumber=0;Bukkit.getScheduler().runTaskLater(this,this::nextQuestion,30L);}
+                    if(game==1||game==2||game==5){game1QuestionActive=false;quizScores.clear();usedQuestions.clear();questionNumber=0;Bukkit.getScheduler().runTaskLater(this,this::nextQuestion,30L);}
                     if(game==3){raceProgress.clear();raceFinishes.clear();}
                     if(game==4){archeryHits.clear();archeryFinishTimes.clear();}
                     broadcast("§dSTART: "+GAMES[game-1]);saveState();return true;}
