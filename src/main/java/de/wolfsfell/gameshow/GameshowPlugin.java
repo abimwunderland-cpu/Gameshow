@@ -225,7 +225,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(buzzed!=null){say(p,"Es hat bereits jemand gebuzzert. Warte auf seine Antwort.");return;}
         String t=team(p.getUniqueId());
         if(t==null){say(p,"Du bist keinem Team zugewiesen.");return;}
-        if(!Objects.equals(selected.get(t),p.getUniqueId())){say(p,"Du bist nicht als Vertreter für "+t+" gewählt. /wg select on und auf den Auswahlplatz stellen.");return;}
+        UUID captain=selected.entrySet().stream().filter(entry->entry.getKey().equalsIgnoreCase(t)).map(Map.Entry::getValue).findFirst().orElse(null);
+        if(!Objects.equals(captain,p.getUniqueId())){say(p,"Nicht als Kandidat registriert. Gewählt: "+(captain==null?"niemand":Bukkit.getOfflinePlayer(captain).getName())+". Moderator: /wg candidate set "+t+" "+p.getName());return;}
         if(attemptedBuzzers.contains(p.getUniqueId())){say(p,"Du hast in dieser Runde bereits geraten.");return;}
         attemptedBuzzers.add(p.getUniqueId());buzzed=p.getUniqueId();game1RemainingOnBuzz=Math.max(0,game1RoundEnds-System.currentTimeMillis());buzzDeadline=System.currentTimeMillis()+5000L;
         gameOneScreen.freeze();
@@ -235,11 +236,17 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     @EventHandler(priority=EventPriority.HIGHEST, ignoreCancelled=false) public void onPhysicalBuzzer(PlayerInteractEvent e){
         if(e.getHand()!=EquipmentSlot.HAND || e.getClickedBlock()==null || e.getAction()!=Action.RIGHT_CLICK_BLOCK)return;
         String block=key(e.getClickedBlock().getLocation());
-        if(!buzzerBlocks.containsValue(block))return;
+        if(!buzzerBlocks.containsValue(block)){
+            if(running && game==1 && e.getClickedBlock().getType().name().endsWith("BUTTON")){
+                say(e.getPlayer(),"Dieser Knopf ist nicht als Gameshow-Buzzer gespeichert. Moderator: /wg buzzer set <Team>");
+            }
+            return;
+        }
         e.setCancelled(true);
         String t=team(e.getPlayer().getUniqueId());
         if(t==null){say(e.getPlayer(),"Du bist keinem Team zugeteilt. Moderator: /wg team join <Team> <Spieler>");return;}
-        if(!block.equals(buzzerBlocks.get(t))){
+        String configured=buzzerBlocks.entrySet().stream().filter(entry->entry.getKey().equalsIgnoreCase(t)).map(Map.Entry::getValue).findFirst().orElse(null);
+        if(!block.equals(configured)){
             String owner=buzzerBlocks.entrySet().stream().filter(entry->block.equals(entry.getValue())).map(Map.Entry::getKey).findFirst().orElse("unbekannt");
             say(e.getPlayer(),"Das ist der Buzzer von "+owner+", du bist in "+t+". Nutze deinen Team-Buzzer.");return;
         }
@@ -265,7 +272,9 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     @EventHandler public void onChat(AsyncPlayerChatEvent e) {
         if(!running || !(game==1 || game==2 || game==5))return;
         Player p=e.getPlayer();String t=team(p.getUniqueId());
-        if(t==null || !Objects.equals(selected.get(t),p.getUniqueId()))return;
+        if(t==null)return;
+        UUID captain=selected.entrySet().stream().filter(entry->entry.getKey().equalsIgnoreCase(t)).map(Map.Entry::getValue).findFirst().orElse(null);
+        if(!Objects.equals(captain,p.getUniqueId()))return;
         if(game==1 && (!p.getUniqueId().equals(buzzed) || System.currentTimeMillis()>buzzDeadline))return;
         if(game!=1 && answerDeadline==0)return;
         String msg=e.getMessage().trim();e.setCancelled(true);
@@ -696,7 +705,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             say(sender,"/wg team create|delete|color|join|leave|list | /wg wand region | /wg wand neon <Team> | /wg region save cage:<Team>");
             say(sender,"/wg studio lock|unlock | /wg region save selection:<Team> | /wg select on/off");
             say(sender,"/wg neon save <Team> | /wg neon selection <Team> | /wg neon clear <Team> | /wg neon cleanup");
-            say(sender,"/wg reset scores | /wg reset game1 | /wg screen set|test | /wg buzzer set <Team> (Knopf ansehen) | /wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
+            say(sender,"/wg reset scores | /wg reset game1 | /wg candidate set <Team> <Spieler> | /wg candidates | /wg screen set|test | /wg buzzer set <Team> (Knopf ansehen) | /wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
             say(sender,"/wg raw <Team> <Spiel 1-5> <Wert> | /wg rank | /wg qualify | /wg finalist <A> <B>");
             say(sender,"/wg basket <Team> <0-6> | /wg parkour finish | /wg chest add|clear|shuffle|stop");
             say(sender,"/wg points <Team> | /wg points add <Team> <Zahl> | /wg spend <Team> <Kosten> <Notiz>");return true;
@@ -817,6 +826,20 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                         if(game==4)for(String t:teams.keySet())if(!teams.get(t).isEmpty() && archeryHits.containsKey(t))raw.computeIfAbsent(t,k->new HashMap<>()).put(game,archeryHits.getOrDefault(t,0));
                         running=false;rankRound(sender,game);broadcast("§dSpiel "+game+" abgeschlossen.");return true;
                     }break;
+                }
+                case "candidate" -> {
+                    if(args.length<4 || !args[1].equalsIgnoreCase("set")){
+                        say(sender,"/wg candidate set <Team> <Spieler>");return true;
+                    }
+                    String targetTeam=teams.keySet().stream().filter(k->k.equalsIgnoreCase(args[2])).findFirst().orElse(null);
+                    Player candidate=Bukkit.getPlayerExact(args[3]);
+                    if(targetTeam==null || candidate==null){say(sender,"Team unbekannt oder Spieler offline.");return true;}
+                    if(!teams.get(targetTeam).contains(candidate.getUniqueId())){
+                        say(sender,candidate.getName()+" gehört nicht zu "+targetTeam+". Erst /wg team join "+targetTeam+" "+candidate.getName());return true;
+                    }
+                    selected.put(targetTeam,candidate.getUniqueId());selectionTicks.clear();
+                    saveState();say(sender,candidate.getName()+" ist jetzt Kandidat für "+targetTeam);
+                    return true;
                 }
                 case "candidates" -> {
                     for(String name:teams.keySet()){
