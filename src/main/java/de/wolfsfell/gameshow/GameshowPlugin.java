@@ -233,7 +233,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         broadcast("§dBUZZ! §f"+p.getName()+" §7hat 5 Sekunden für eine Chat-Antwort!");
         p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_BELL,1f,1.4f);
     }
-    @EventHandler(priority=EventPriority.HIGHEST, ignoreCancelled=false) public void onPhysicalBuzzer(PlayerInteractEvent e){
+    @EventHandler(priority=EventPriority.LOWEST, ignoreCancelled=false) public void onPhysicalBuzzer(PlayerInteractEvent e){
         if(e.getHand()!=EquipmentSlot.HAND || e.getClickedBlock()==null || e.getAction()!=Action.RIGHT_CLICK_BLOCK)return;
         String block=key(e.getClickedBlock().getLocation());
         if(!buzzerBlocks.containsValue(block)){
@@ -242,7 +242,10 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             }
             return;
         }
-        e.setCancelled(true);
+        // Handle registered buzzers even when another plugin/spawn protection cancels
+        // the vanilla block interaction for non-OP players. Never require OP here.
+        e.setUseInteractedBlock(Event.Result.DENY);
+        e.setUseItemInHand(Event.Result.DENY);
         String t=team(e.getPlayer().getUniqueId());
         if(t==null){say(e.getPlayer(),"Du bist keinem Team zugeteilt. Moderator: /wg team join <Team> <Spieler>");return;}
         String configured=buzzerBlocks.entrySet().stream().filter(entry->entry.getKey().equalsIgnoreCase(t)).map(Map.Entry::getValue).findFirst().orElse(null);
@@ -923,7 +926,19 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         say(p,"Gekauft: "+item+" für "+cost+" Punkte. Rest: "+advantages.get(t));p.playSound(p.getLocation(),"wolfsfell.purchase",1f,1f);saveState();
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
-        if(args.length==1)return Arrays.stream(new String[]{"screen","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==1)return Arrays.stream(new String[]{"screen","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==2&&args[0].equalsIgnoreCase("candidate"))return List.of("set");
+        if(args.length==3&&args[0].equalsIgnoreCase("candidate")&&args[1].equalsIgnoreCase("set"))
+            return teams.keySet().stream().filter(t->t.toLowerCase(Locale.ROOT).startsWith(args[2].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==4&&args[0].equalsIgnoreCase("candidate")&&args[1].equalsIgnoreCase("set")){
+            String chosen=teams.keySet().stream().filter(t->t.equalsIgnoreCase(args[2])).findFirst().orElse(null);
+            if(chosen==null)return List.of();
+            return teams.get(chosen).stream().map(Bukkit::getPlayer).filter(Objects::nonNull)
+                .map(Player::getName).filter(n->n.toLowerCase(Locale.ROOT).startsWith(args[3].toLowerCase(Locale.ROOT))).toList();
+        }
+        if(args.length==2&&args[0].equalsIgnoreCase("buzzer"))return List.of("set","check");
+        if(args.length==3&&args[0].equalsIgnoreCase("buzzer")&&args[1].equalsIgnoreCase("set"))
+            return teams.keySet().stream().filter(t->t.toLowerCase(Locale.ROOT).startsWith(args[2].toLowerCase(Locale.ROOT))).toList();
         if(args.length==2&&args[0].equalsIgnoreCase("target"))return List.of("add");
         if(args.length==2&&args[0].equalsIgnoreCase("checkpoint"))return List.of("add","clear");
         if(args.length==2&&args[0].equalsIgnoreCase("team"))return List.of("create","join","leave","delete","color","list");
