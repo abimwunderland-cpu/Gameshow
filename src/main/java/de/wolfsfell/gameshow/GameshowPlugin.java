@@ -101,6 +101,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private final GameOneScreen gameOneScreen = new GameOneScreen(this);
     private boolean game1QuestionActive=false;
     private long game1RoundEnds=0;
+    private long game1RemainingOnBuzz=0;
 
     @Override public void onEnable() {
         saveDefaultConfig(); stateFile = new File(getDataFolder(),"state.yml"); loadState();
@@ -143,7 +144,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(game==1 && game1QuestionActive && buzzed==null)gameOneScreen.advance();
         if(game==1 && game1QuestionActive && buzzed==null && System.currentTimeMillis()>=game1RoundEnds){game1QuestionActive=false;gameOneScreen.reveal();broadcast("§eRunde abgelaufen! Antwort: "+correctAnswer);Bukkit.getScheduler().runTaskLater(this,()->{if(running&&game==1)nextQuestion();},60L);}
         if(game==1 && buzzed!=null && System.currentTimeMillis()>=buzzDeadline){
-            broadcast("§c5 Sekunden vorbei! §7Buzzer wieder frei.");buzzed=null;buzzDeadline=0;gameOneScreen.resume();
+            broadcast("§c5 Sekunden vorbei! §7Buzzer wieder frei.");buzzed=null;buzzDeadline=0;game1RoundEnds=System.currentTimeMillis()+game1RemainingOnBuzz;gameOneScreen.resume();
         }
         if((game==2 || game==5) && answerDeadline>0 && System.currentTimeMillis()>=answerDeadline) {
             answerDeadline=0; resolveQuestion();
@@ -199,19 +200,22 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private void buzz(Player p){
         if(!running || game!=1 || buzzed!=null || !game1QuestionActive)return;
         String t=team(p.getUniqueId());
-        if(t==null || !Objects.equals(selected.get(t),p.getUniqueId()) || attemptedBuzzers.contains(p.getUniqueId()))return;
-        attemptedBuzzers.add(p.getUniqueId());buzzed=p.getUniqueId();buzzDeadline=System.currentTimeMillis()+5000L;
+        if(t==null){say(p,"Du bist keinem Team zugewiesen.");return;}
+        if(!Objects.equals(selected.get(t),p.getUniqueId())){say(p,"Du bist nicht als Vertreter für "+t+" gewählt. /wg select on und auf den Auswahlplatz stellen.");return;}
+        if(attemptedBuzzers.contains(p.getUniqueId())){say(p,"Du hast in dieser Runde bereits geraten.");return;}
+        attemptedBuzzers.add(p.getUniqueId());buzzed=p.getUniqueId();game1RemainingOnBuzz=Math.max(0,game1RoundEnds-System.currentTimeMillis());buzzDeadline=System.currentTimeMillis()+5000L;
         gameOneScreen.freeze();
         broadcast("§dBUZZ! §f"+p.getName()+" §7hat 5 Sekunden für eine Chat-Antwort!");
         p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_BELL,1f,1.4f);
     }
     @EventHandler(priority=EventPriority.HIGH) public void onPhysicalBuzzer(PlayerInteractEvent e){
-        if(e.getClickedBlock()==null || (e.getAction()!=Action.RIGHT_CLICK_BLOCK && e.getAction()!=Action.LEFT_CLICK_BLOCK))return;
+        if(e.getHand()!=EquipmentSlot.HAND || e.getClickedBlock()==null || e.getAction()!=Action.RIGHT_CLICK_BLOCK)return;
         String block=key(e.getClickedBlock().getLocation());
         if(!buzzerBlocks.containsValue(block))return;
         e.setCancelled(true);
         String t=team(e.getPlayer().getUniqueId());
         if(t!=null && block.equals(buzzerBlocks.get(t)))buzz(e.getPlayer());
+        else say(e.getPlayer(),"Dieser Buzzer gehört einem anderen Team.");
     }
     @EventHandler public void onChest(PlayerInteractEvent e) {
         if(!running || game!=8 || e.getAction()!=Action.RIGHT_CLICK_BLOCK || e.getClickedBlock()==null)return;
@@ -246,7 +250,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     quizScores.merge(t,pts,Integer::sum);individual.merge(p.getUniqueId(),pts,Integer::sum);
                     broadcast("§a"+t+" – RICHTIG! §a+1 Punkt §7("+p.getName()+") §f– "+correctAnswer);
                     buzzed=null;buzzDeadline=0;game1QuestionActive=false;gameOneScreen.reveal();Bukkit.getScheduler().runTaskLater(this,()->{if(running&&game==1)nextQuestion();},60L);
-                } else {broadcast("§cFalsch! §7"+t+" darf diese Runde nicht mehr buzzern.");buzzed=null;buzzDeadline=0;gameOneScreen.resume();}
+                } else {broadcast("§cFalsch! §7"+t+" darf diese Runde nicht mehr buzzern.");buzzed=null;buzzDeadline=0;game1RoundEnds=System.currentTimeMillis()+game1RemainingOnBuzz;gameOneScreen.resume();}
             }else if(game==2){
                 String v=msg.toUpperCase(Locale.ROOT);
                 if(!List.of("A","B","C","D").contains(v)){say(p,"Antworte mit A, B, C oder D.");return;}
@@ -290,7 +294,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         broadcast("§dFrage "+questionNumber+": §f"+currentPrompt);
         if(game==2)for(int i=0;i<4;i++)broadcast("§7"+(char)('A'+i)+") §f"+choices[i]);
         if(game==5)broadcast("§7Schätzung im Chat eingeben!");
-        if(game==1){game1QuestionActive=true;game1RoundEnds=System.currentTimeMillis()+30000L;gameOneScreen.show(correctAnswer);broadcast("§7Team-Buzzer drücken! 5 Sekunden für die Antwort, ein Versuch pro Spieler.");}
+        if(game==1){game1QuestionActive=true;game1RoundEnds=System.currentTimeMillis()+30000L;game1RemainingOnBuzz=0;gameOneScreen.show(correctAnswer);broadcast("§7Team-Buzzer drücken! 5 Sekunden für die Antwort, ein Versuch pro Spieler.");}
     }
     private void resolveQuestion(){
         if(game==2){
