@@ -1,0 +1,421 @@
+questions:
+- game: 2
+  question: '[LEICHT] Welche Dimension beherbergt den Enderdrachen?'
+  answer: Das Ende
+  wrong:
+  - Nether
+  - Oberwelt
+  - Deep Dark
+- game: 2
+  question: '[LEICHT] Welcher Block fällt ohne Unterstützung nach unten?'
+  answer: Sand
+  wrong:
+  - Stein
+  - Obsidian
+  - Grasblock
+- game: 2
+  question: '[LEICHT] Welche Farbe hat ein gewöhnlicher Creeper?'
+  answer: Grün
+  wrong:
+  - Blau
+  - Rot
+  - Violett
+- game: 2
+  question: '[LEICHT] Welches Item zähmt einen Wolf?'
+  answer: Knochen
+  wrong:
+  - Weizen
+  - Karotte
+  - Rohes Huhn
+- game: 2
+  question: '[LEICHT] Was benötigt man für eine Fackel?'
+  answer: Stock und Kohle
+  wrong:
+  - Stock und Eisen
+  - Stock und Kupfer
+  - Stock und Redstone
+- game: 2
+  question: '[LEICHT] Wie viele Bretter ergeben sich aus einem Holzstamm?'
+  answer: '4'
+  wrong:
+  - '2'
+  - '6'
+  - '8'
+- game: 2
+  question: '[LEICHT] Was droppen Kühe unter anderem?'
+  answer: Leder
+  wrong:
+  - Wolle
+  - Federn
+  - Tinte
+- game: 2
+  question: '[LEICHT] Welches Tier liefert Wolle?'
+  answer: Schaf
+  wrong:
+  - Kuh
+  - Huhn
+  - Schwein
+- game: 2
+  question: '[LEICHT] Welcher Mob schießt mit Pfeilen?'
+  answer: Skelett
+  wrong:
+  - Zombie
+  - Creeper
+  - Schleim
+- game: 2
+  question: '[LEICHT] Welcher Planet ist der Sonne am nächsten?'
+  answer: Merkur
+  wrong:
+  - Venus
+  - Mars
+  - Erde
+- game: 2
+  question: '[LEICHT] Wie viele Minuten hat ein Tag?'
+  answer: '1440'
+  wrong:
+  - '1200'
+  - '1240'
+  - '1600'
+- game: 2
+  question: '[LEICHT] Wie viele Seiten hat ein Hexagon?'
+  answer: '6'
+  wrong:
+  - '5'
+  - '7'
+  - '8'
+- game: 2
+  question: '[LEICHT] Welches Organ pumpt Blut?'
+  answer: Herz
+  wrong:
+  - Leber
+  - Lunge
+  - Niere
+- game: 2
+  question: '[LEICHT] Welcher Ozean ist der größte?'
+  answer: Pazifik
+  wrong:
+  - Atlantik
+  - Indischer Ozean
+  - Arktischer Ozean
+- game: 2
+  question: '[LEICHT] Wie viele Farben hat die deutsche Flagge?'
+  answer: '3'
+  wrong:
+  - '2'
+  - '4'
+  - '5'
+- game: 2
+  question: '[LEICHT] Welche Stadt liegt in Italien?'
+  answer: Florenz
+  wrong:
+  - Lyon
+  - Porto
+  - Basel
+- game: 2
+  question: '[LEICHT] Welcher Stoff hat die chemische Formel H2O?'
+  answer: Wasser
+  wrong:
+  - Sauerstoff
+  - Salz
+  - Kohlendioxid
+- game: 2
+  question: '[LEICHT] Wie viele Spieler stehen bei Fußball pro Team auf dem Feld?'
+  answer: '11'
+  wrong:
+  - '9'
+  - '10'
+  - '12'
+- game: 2
+  question: '[LEICHT] Welches Land hat die Form eines Stiefels?'
+  answer: Italien
+  wrong:
+  - Spanien
+  - Portugal
+  - Griechenland
+- game: 2
+  question: '[LEICHT] Wie viele Meter sind ein Kilometer?'
+  answer: '1000'
+  wrong:
+  - '100'
+  - '500'
+  - '10000'
+- game: 2
+  question: '[MITTEL] Womit stellt man einen Netherite-Barren her?'
+  answer: 4 Netherite-Schrott und 4 Goldbarren
+  wrong:
+  - 4 Netherite-Schrott und 4 Eisenbarren
+  - 4 Antiker Schrott und 4 Diamanten
+  - 1 Netherstern und 8 Goldbarren
+- game: 2
+  question: '[MITTEL] Wie viele Obsidianblöcke braucht das kleinste Netherportal?'
+  answer: '10'
+  wrong:
+  - '8'
+  - '12'
+  - '14'
+- game: 2
+  question: '[MITTEL] Was braucht ein Leuchtfeuer zur Aktivierung?'
+  answer: Eine Pyramide aus Mineralblöcken
+  wrong:
+  - Einen Redstone-Block
+  - Vier Enderkristalle
+  - Ein Lagerfeuer
+- game: 2
+  question: '[MITTEL] Wie heißt die unterirdische Struktur mit dem Endportal?'
+  answer: Festung
+  wrong:
+  - Bastion
+  - Waldanwesen
+  - Dschungeltempel
+- game: 2
+  question: '[MITTEL] Welcher Gegenstand repariert Elytren am Amboss?'
+  answer: Phantomhaut
+  wrong:
+  - Leder
+  - Papier
+  - Kupfer
+- game: 2
+  question: '[MITTEL] Welcher Mob wird durch Blöcke mit Sculk-Sensoren alarmiert?'
+  answer: Warden
+  wrong:
+  - Enderman
+  - Blaze
+  - Shulker
+- game: 2
+  question: '[MITTEL] Was passiert beim Schlafen in einem Bett im Nether?'
+  answer: Es explodiert
+  wrong:
+  - Man wacht in der Oberwelt auf
+  - Es wird Nacht
+  - Man teleportiert sich
+- game: 2
+  question: '[MITTEL] Welche Frucht teleportiert dich zufällig?'
+  answer: Chorusfrucht
+  wrong:
+  - Süßbeere
+  - Glühbeere
+  - Melone
+- game: 2
+  question: '[MITTEL] Welches Werkzeug baut Blätter besonders schnell ab?'
+  answer: Schere
+  wrong:
+  - Schaufel
+  - Spitzhacke
+  - Angel
+- game: 2
+  question: '[MITTEL] Welches Item wird aus drei Zuckerrohren gefertigt?'
+  answer: Papier
+  wrong:
+  - Brot
+  - Buch
+  - Karte
+- game: 2
+  question: '[MITTEL] Welcher Gegenstand hilft bei der Navigation zum Spawn?'
+  answer: Kompass
+  wrong:
+  - Uhr
+  - Fernrohr
+  - Angel
+- game: 2
+  question: '[MITTEL] Welche Pflanze wächst auf Seelensand?'
+  answer: Netherwarze
+  wrong:
+  - Kaktus
+  - Bambus
+  - Seetang
+- game: 2
+  question: '[MITTEL] Was verwandelt einen Dorfbewohner in einen Zombie-Dorfbewohner?'
+  answer: Ein Zombieangriff
+  wrong:
+  - Ein Blitz
+  - Ein Schneeball
+  - Ein Pfeil
+- game: 2
+  question: '[MITTEL] Welcher Gegenstand kann Erfahrung speichern und reparieren helfen?'
+  answer: Verzauberung Reparatur
+  wrong:
+  - Verzauberung Schärfe
+  - Verzauberung Effizienz
+  - Verzauberung Glück
+- game: 2
+  question: '[MITTEL] Wie viele Kontinente gibt es üblicherweise?'
+  answer: '7'
+  wrong:
+  - '5'
+  - '6'
+  - '8'
+- game: 2
+  question: '[MITTEL] Was ist die Hauptstadt von Australien?'
+  answer: Canberra
+  wrong:
+  - Sydney
+  - Melbourne
+  - Perth
+- game: 2
+  question: '[MITTEL] Welches chemische Symbol hat Gold?'
+  answer: Au
+  wrong:
+  - Ag
+  - Go
+  - Gd
+- game: 2
+  question: '[MITTEL] Welche Zahl ist eine Primzahl?'
+  answer: '13'
+  wrong:
+  - '12'
+  - '15'
+  - '21'
+- game: 2
+  question: '[MITTEL] Wie heißt die Hauptstadt von Kanada?'
+  answer: Ottawa
+  wrong:
+  - Toronto
+  - Vancouver
+  - Montreal
+- game: 2
+  question: '[MITTEL] Welches Instrument hat normalerweise 88 Tasten?'
+  answer: Klavier
+  wrong:
+  - Gitarre
+  - Trompete
+  - Geige
+- game: 2
+  question: '[SCHWER] Wie viele Spielticks hat eine Minecraft-Sekunde?'
+  answer: '20'
+  wrong:
+  - '10'
+  - '30'
+  - '60'
+- game: 2
+  question: '[SCHWER] Wie viele Bücherregale braucht ein Zaubertisch maximal?'
+  answer: '15'
+  wrong:
+  - '12'
+  - '16'
+  - '20'
+- game: 2
+  question: '[SCHWER] Welche Y-Höhe gilt in neueren Versionen als besonders gut für Diamanten?'
+  answer: '-59'
+  wrong:
+  - '12'
+  - '0'
+  - '-16'
+- game: 2
+  question: '[SCHWER] Wie viele Blöcke reichen für eine vollständige Beacon-Basis mit vier Ebenen?'
+  answer: '164'
+  wrong:
+  - '81'
+  - '125'
+  - '169'
+- game: 2
+  question: '[SCHWER] Welcher Status-Effekt wird durch einen normalen Milcheimer entfernt?'
+  answer: Alle gewöhnlichen Statuseffekte
+  wrong:
+  - Nur Gift
+  - Nur Schwäche
+  - Nur positive Effekte
+- game: 2
+  question: '[SCHWER] Wie viele Items passen maximal in eine volle Doppelkiste mit 64er-Stacks?'
+  answer: '3456'
+  wrong:
+  - '1728'
+  - '2304'
+  - '4096'
+- game: 2
+  question: '[SCHWER] Wie hoch ist die normale Minecraft-Weltobergrenze zum Bauen seit 1.18?'
+  answer: Y=319
+  wrong:
+  - Y=255
+  - Y=256
+  - Y=383
+- game: 2
+  question: '[SCHWER] Welche Struktur enthält einen Respawn-Anker als natürliches Loot-Item?'
+  answer: Bastionsruine
+  wrong:
+  - Endstadt
+  - Wüstentempel
+  - Ozeanmonument
+- game: 2
+  question: '[SCHWER] Was ist die Ordnungszahl von Wolfram?'
+  answer: '74'
+  wrong:
+  - '72'
+  - '76'
+  - '82'
+- game: 2
+  question: '[SCHWER] Welcher Planet hat den kürzesten Umlauf um die Sonne?'
+  answer: Merkur
+  wrong:
+  - Venus
+  - Mars
+  - Erde
+- game: 2
+  question: '[SCHWER] Welche SI-Einheit misst elektrische Kapazität?'
+  answer: Farad
+  wrong:
+  - Henry
+  - Tesla
+  - Weber
+- game: 2
+  question: '[SCHWER] In welchem Jahr fiel die Berliner Mauer?'
+  answer: '1989'
+  wrong:
+  - '1987'
+  - '1990'
+  - '1991'
+- game: 2
+  question: '[SCHWER] Welches chemische Element trägt das Symbol Sb?'
+  answer: Antimon
+  wrong:
+  - Silber
+  - Schwefel
+  - Strontium
+- game: 2
+  question: '[SCHWER] Welche Zahl ist die Quadratwurzel aus 2025?'
+  answer: '45'
+  wrong:
+  - '35'
+  - '40'
+  - '55'
+- game: 2
+  question: '[SCHWER] Wie heißt die Meerenge zwischen Spanien und Marokko?'
+  answer: Straße von Gibraltar
+  wrong:
+  - Bosporus
+  - Straße von Hormus
+  - Beringstraße
+- game: 2
+  question: '[SCHWER] Welches Land besitzt die meisten Zeitzonen einschließlich Überseegebieten?'
+  answer: Frankreich
+  wrong:
+  - Russland
+  - USA
+  - China
+- game: 2
+  question: '[SCHWER] Welche Stadt war Hauptstadt des Byzantinischen Reichs?'
+  answer: Konstantinopel
+  wrong:
+  - Athen
+  - Rom
+  - Alexandria
+- game: 2
+  question: '[SCHWER] Wie viele Grad hat die Winkelsumme eines Fünfecks?'
+  answer: '540'
+  wrong:
+  - '360'
+  - '450'
+  - '720'
+- game: 2
+  question: '[SCHWER] Welcher Wissenschaftler formulierte die drei Bewegungsgesetze?'
+  answer: Isaac Newton
+  wrong:
+  - Galileo Galilei
+  - Albert Einstein
+  - Johannes Kepler
+- game: 2
+  question: '[SCHWER] Welche Blutgruppe gilt bei Erythrozytentransfusionen als Universalspender?'
+  answer: 0 negativ
+  wrong:
+  - AB positiv
+  - A negativ
+  - B negativ

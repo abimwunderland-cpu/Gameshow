@@ -391,19 +391,39 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             int g=Integer.parseInt(String.valueOf(row.get("game")));
             String prompt=String.valueOf(row.get("question")),answer=String.valueOf(row.get("answer"));
             Object w=row.get("wrong");String[] wrong=w instanceof List<?> list?list.stream().map(String::valueOf).toArray(String[]::new):new String[0];
-            if((g==2 && wrong.length==3) || g==5)questions.add(new QuizQuestion(g,prompt,answer,wrong));
+            if(g==5)questions.add(new QuizQuestion(g,prompt,answer,wrong));
         }catch(Exception ignored){}
+        // Game 2 has its own graded question bank, independent of an older questions.yml.
+        File g2=new File(getDataFolder(),"game2-questions.yml");
+        if(!g2.exists())saveResource("game2-questions.yml",false);
+        YamlConfiguration y2=YamlConfiguration.loadConfiguration(g2);
+        for(Map<?,?> row:y2.getMapList("questions"))try{
+            String prompt=String.valueOf(row.get("question")),answer=String.valueOf(row.get("answer"));
+            Object wrong=row.get("wrong");
+            if(wrong instanceof List<?> list && list.size()==3)questions.add(new QuizQuestion(2,prompt,answer,list.stream().map(String::valueOf).toArray(String[]::new)));
+        }catch(Exception ex){getLogger().warning("Invalid game2 question: "+ex.getMessage());}
         getLogger().info("Loaded "+questions.size()+" quiz entries");
+    }
+    private int quizDifficulty(String prompt){
+        // Questions tagged [LEICHT], [MITTEL], [SCHWER] in questions.yml.
+        if(prompt.startsWith("[SCHWER] "))return 3;
+        if(prompt.startsWith("[MITTEL] "))return 2;
+        return 1;
     }
     private void nextQuestion(){
         if(questionNumber >= (game==2?15:10)){running=false;game1QuestionActive=false;answerDeadline=0;game2Accepting=false;game2Revealing=false;restoreGame2Inventories();gameOneScreen.idle();broadcast("§d"+questionNumber+" Fragen beendet! §7Mit /wg finishround die Punkte speichern.");saveState();return;}
         List<QuizQuestion> pool=questions.stream().filter(q->q.game()==game&&!usedQuestions.contains(q.game()+":"+q.answer()) && (game!=1 || GAME1_ITEMS.contains(q.answer()))).toList();
+        if(game==2){
+            int level=questionNumber<4?1:questionNumber<11?2:3;
+            List<QuizQuestion> graded=pool.stream().filter(q->quizDifficulty(q.prompt())==level).toList();
+            if(!graded.isEmpty())pool=graded;
+        }
         if(pool.isEmpty()){broadcast("§dFragenpool für Spiel "+game+" aufgebraucht.");running=false;if(game==2)restoreGame2Inventories();return;}
         QuizQuestion q=pool.get(random.nextInt(pool.size()));usedQuestions.add(q.game()+":"+q.answer());questionNumber++;
-        currentPrompt=q.prompt();correctAnswer=q.answer();responses.clear();estimates.clear();buzzed=null;buzzDeadline=0;attemptedBuzzers.clear();
+        currentPrompt=q.prompt().replaceFirst("^\\[(LEICHT|MITTEL|SCHWER)\\] ","");correctAnswer=q.answer();responses.clear();estimates.clear();buzzed=null;buzzDeadline=0;attemptedBuzzers.clear();
         if(game==2){List<String> opts=new ArrayList<>();opts.add(q.answer());opts.addAll(Arrays.asList(q.wrong()));Collections.shuffle(opts);choices=opts.toArray(String[]::new);}
-        answerDeadline=game==1?0:System.currentTimeMillis()+7000L;
-        if(game==2){game2Accepting=true;game2Revealing=false;game2LastSecond=-1;gameOneScreen.showQuiz2(questionNumber,currentPrompt,choices,7,0,selected.size(),null);}
+        answerDeadline=game==1?0:System.currentTimeMillis()+(game==2?9000L:7000L);
+        if(game==2){game2Accepting=true;game2Revealing=false;game2LastSecond=-1;gameOneScreen.showQuiz2(questionNumber,currentPrompt,choices,9,0,selected.size(),null);}
         broadcast("§dFrage "+questionNumber+": §f"+currentPrompt);
         if(game==2)for(int i=0;i<4;i++)broadcast("§7"+(char)('A'+i)+") §f"+choices[i]);
         if(game==5)broadcast("§7Schätzung im Chat eingeben!");
@@ -431,7 +451,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 if(pts>0){broadcast("§a"+entry.getKey()+" – +"+pts+" Punkt(e)!");quizScores.merge(entry.getKey(),pts,Integer::sum);UUID id=selected.get(entry.getKey());if(id!=null)individual.merge(id,pts,Integer::sum);}
             }
         }
-        if(running)Bukkit.getScheduler().runTaskLater(this,()->{if(running && (game==2||game==5))nextQuestion();},game==2?60L:80L);
+        if(running)Bukkit.getScheduler().runTaskLater(this,()->{if(running && (game==2||game==5))nextQuestion();},game==2?120L:80L);
         updateDisplays();saveState();
     }
     private void updateDisplays(){
@@ -470,6 +490,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             p.setGlowing(mine!=null);
         }
     }
+    String wideTeamColor(String t){return teamColors.getOrDefault(t,"PURPLE");}
+    String widePlayerColor(UUID id){String t=team(id);return t==null?"WHITE":wideTeamColor(t);}
     List<String> wideTeams(){List<String> r=new ArrayList<>(teams.keySet());r.sort(Comparator.comparingInt((String t)->qualifying.getOrDefault(t,0)+(running && game==1?quizScores.getOrDefault(t,0):0)).reversed().thenComparing(t->t));return r;}
     int wideTeamPoints(String t){return qualifying.getOrDefault(t,0)+(running && game==1?quizScores.getOrDefault(t,0):0);}
     List<UUID> widePlayers(){List<UUID> r=new ArrayList<>(individual.keySet());r.sort(Comparator.comparingInt((UUID id)->individual.getOrDefault(id,0)).reversed());return r;}
@@ -873,7 +895,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             say(sender,"/wg team create|delete|color|join|leave|list | /wg wand region | /wg wand neon <Team> | /wg region save cage:<Team>");
             say(sender,"/wg studio lock|unlock | /wg region save selection:<Team> | /wg select on/off");
             say(sender,"/wg neon save <Team> | /wg neon selection <Team> | /wg neon clear <Team> | /wg neon cleanup");
-            say(sender,"/wg reset scores | /wg reset game1 | /wg candidate set <Team> <Spieler> | /wg candidates | /wg screen set|test | /wg buzzer set <Team> (Knopf ansehen) | /wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
+            say(sender,"/wg reset scores | /wg reset game1 | /wg candidate set <Team> <Spieler> | /wg candidates | /wg screen set|test|remove | /wg buzzer set <Team> (Knopf ansehen) | /wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
             say(sender,"/wg raw <Team> <Spiel 1-5> <Wert> | /wg rank | /wg qualify | /wg finalist <A> <B>");
             say(sender,"/wg basket <Team> <0-6> | /wg parkour finish | /wg chest add|clear|shuffle|stop");
             say(sender,"/wg points <Team> | /wg points add <Team> <Zahl> | /wg spend <Team> <Kosten> <Notiz>");return true;
@@ -881,6 +903,9 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         String cmd=args[0].toLowerCase(Locale.ROOT);
         if(cmd.equals("screen")&&admin(sender)) {
             if(!(sender instanceof Player p))return true;
+            if(args.length>=2 && args[1].equalsIgnoreCase("remove")){
+                int count=gameOneScreen.removeScreen(p);say(sender,"Bildschirm entfernt: "+count+" zugehörige Itemframes. Gespeicherte Position gelöscht.");return true;
+            }
             if(args.length>=2 && args[1].equalsIgnoreCase("set")){gameOneScreen.setup(p);return true;}
             if(args.length>=2 && args[1].equalsIgnoreCase("test")){
                 gameOneScreen.show("Diamant");
@@ -1092,6 +1117,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
         if(args.length==1)return Arrays.stream(new String[]{"screen","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==2&&args[0].equalsIgnoreCase("screen"))return List.of("set","test","remove");
         if(args.length==2&&args[0].equalsIgnoreCase("candidate"))return List.of("set");
         if(args.length==3&&args[0].equalsIgnoreCase("candidate")&&args[1].equalsIgnoreCase("set"))
             return teams.keySet().stream().filter(t->t.toLowerCase(Locale.ROOT).startsWith(args[2].toLowerCase(Locale.ROOT))).toList();
