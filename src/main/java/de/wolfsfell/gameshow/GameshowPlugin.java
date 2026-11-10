@@ -176,6 +176,19 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     @EventHandler public void onMove(PlayerMoveEvent e) {
         if(e.getTo()==null)return;
+        // During Game 1 the elected player must stay on the marked selection platform.
+        // This check also applies to operators who are actively playing, but never to
+        // moderators who have not been elected as a contestant.
+        if(running && game==1 && !selectionEnabled){
+            String playingTeam=team(e.getPlayer().getUniqueId());
+            if(playingTeam!=null && Objects.equals(selected.get(playingTeam),e.getPlayer().getUniqueId())){
+                Location[] spot=cages.get("selection:"+playingTeam.toLowerCase(Locale.ROOT));
+                if(spot!=null && !insideHorizontal(e.getTo(),spot[0],spot[1])){
+                    if(e.getFrom().getBlockX()!=e.getTo().getBlockX() || e.getFrom().getBlockZ()!=e.getTo().getBlockZ())e.setTo(e.getFrom());
+                    return;
+                }
+            }
+        }
         if(studioLocked && !e.getPlayer().hasPermission("wg.admin")) {
             String assigned=team(e.getPlayer().getUniqueId());
             if(assigned!=null){
@@ -202,6 +215,11 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(parkourFinishes.size()>=finalists.size())stopParkour();else saveState();
     }
     private void stopParkour(){if(!running || game!=7)return;for(String t:finalists)advantages.merge(t,parkourScores.getOrDefault(t,0),Integer::sum);running=false;broadcast("Parkour beendet! Vorteile wurden gutgeschrieben.");saveState();}
+    private boolean insideHorizontal(Location point,Location a,Location b){
+        return point!=null && point.getWorld().equals(a.getWorld()) &&
+            point.getBlockX()>=Math.min(a.getBlockX(),b.getBlockX()) && point.getBlockX()<=Math.max(a.getBlockX(),b.getBlockX()) &&
+            point.getBlockZ()>=Math.min(a.getBlockZ(),b.getBlockZ()) && point.getBlockZ()<=Math.max(a.getBlockZ(),b.getBlockZ());
+    }
     private void buzz(Player p){
         if(!running || game!=1 || !game1QuestionActive){say(p,"Spiel 1 hat gerade keine aktive Fragerunde.");return;}
         if(buzzed!=null){say(p,"Es hat bereits jemand gebuzzert. Warte auf seine Antwort.");return;}
@@ -214,14 +232,18 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         broadcast("§dBUZZ! §f"+p.getName()+" §7hat 5 Sekunden für eine Chat-Antwort!");
         p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_BELL,1f,1.4f);
     }
-    @EventHandler(priority=EventPriority.HIGH) public void onPhysicalBuzzer(PlayerInteractEvent e){
+    @EventHandler(priority=EventPriority.HIGHEST, ignoreCancelled=false) public void onPhysicalBuzzer(PlayerInteractEvent e){
         if(e.getHand()!=EquipmentSlot.HAND || e.getClickedBlock()==null || e.getAction()!=Action.RIGHT_CLICK_BLOCK)return;
         String block=key(e.getClickedBlock().getLocation());
         if(!buzzerBlocks.containsValue(block))return;
         e.setCancelled(true);
         String t=team(e.getPlayer().getUniqueId());
-        if(t!=null && block.equals(buzzerBlocks.get(t)))buzz(e.getPlayer());
-        else say(e.getPlayer(),"Dieser Buzzer gehört einem anderen Team.");
+        if(t==null){say(e.getPlayer(),"Du bist keinem Team zugeteilt. Moderator: /wg team join <Team> <Spieler>");return;}
+        if(!block.equals(buzzerBlocks.get(t))){
+            String owner=buzzerBlocks.entrySet().stream().filter(entry->block.equals(entry.getValue())).map(Map.Entry::getKey).findFirst().orElse("unbekannt");
+            say(e.getPlayer(),"Das ist der Buzzer von "+owner+", du bist in "+t+". Nutze deinen Team-Buzzer.");return;
+        }
+        buzz(e.getPlayer());
     }
     @EventHandler public void onChest(PlayerInteractEvent e) {
         if(!running || game!=8 || e.getAction()!=Action.RIGHT_CLICK_BLOCK || e.getClickedBlock()==null)return;
@@ -796,6 +818,14 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                         running=false;rankRound(sender,game);broadcast("§dSpiel "+game+" abgeschlossen.");return true;
                     }break;
                 }
+                case "candidates" -> {
+                    for(String name:teams.keySet()){
+                        UUID id=selected.get(name);
+                        say(sender,name+": "+(id==null?"kein Kandidat":Bukkit.getOfflinePlayer(id).getName())+
+                            " | Buzzer "+(buzzerBlocks.containsKey(name)?"gesetzt":"FEHLT"));
+                    }
+                    return true;
+                }
                 case "buzzer" -> {
                     if(!(sender instanceof Player p)||args.length<3||!args[1].equalsIgnoreCase("set")||!teams.containsKey(args[2]))break;
                     Block b=p.getTargetBlockExact(8);if(b==null){say(sender,"Schaue auf den Knopf.");return true;}
@@ -821,7 +851,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     if(enable){selected.clear();}
                     else {returnUnselectedToCages();studioLocked=true;}
                     saveState();say(sender,"Spielerwahl "+(selectionEnabled?"aktiv":"aus"));return true;}
-                case "game" -> {if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;running=false;game=g;selected.clear();selectionTicks.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]);saveState();return true;}
+                case "game" -> {if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;running=false;game=g;selected.clear();selectionTicks.clear();buzzed=null;attemptedBuzzers.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]);saveState();return true;}
                 case "start" -> {if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;
                     if(game==1||game==2||game==5){game1QuestionActive=false;quizScores.clear();usedQuestions.clear();questionNumber=0;Bukkit.getScheduler().runTaskLater(this,this::nextQuestion,30L);}
                     if(game==3){raceProgress.clear();raceFinishes.clear();}
