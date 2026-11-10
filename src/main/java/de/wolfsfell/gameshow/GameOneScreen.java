@@ -79,7 +79,7 @@ final class GameOneScreen {
         BufferedImage small=new BufferedImage(pixels,pixels,BufferedImage.TYPE_INT_ARGB);
         Graphics2D g=small.createGraphics();g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BILINEAR);g.drawImage(source,0,0,pixels,pixels,null);g.dispose();
         BufferedImage big=new BufferedImage(1152,1152,BufferedImage.TYPE_INT_RGB);
-        g=big.createGraphics();g.setColor(new Color(23,18,37));g.fillRect(0,0,1152,1152);
+        g=big.createGraphics();g.setColor(new java.awt.Color(23,18,37));g.fillRect(0,0,1152,1152);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);g.drawImage(small,0,0,1152,1152,null);g.dispose();display=big;
         for(Player player:Bukkit.getOnlinePlayers())for(MapView map:views)player.sendMap(map);
     }
