@@ -449,3 +449,213 @@ questions:
 - game: 5
   question: Wie viele Minuten sind 3 Minecraft-Tage?
   answer: '60'
+- game: 2
+  question: Wie viele Kontinente gibt es üblicherweise?
+  answer: '7'
+  wrong:
+  - '5'
+  - '6'
+  - '8'
+- game: 2
+  question: Was ist die Hauptstadt von Australien?
+  answer: Canberra
+  wrong:
+  - Sydney
+  - Melbourne
+  - Perth
+- game: 2
+  question: Welcher Planet ist der Sonne am nächsten?
+  answer: Merkur
+  wrong:
+  - Venus
+  - Mars
+  - Erde
+- game: 2
+  question: Wie viele Minuten hat ein Tag?
+  answer: '1440'
+  wrong:
+  - '1200'
+  - '1240'
+  - '1600'
+- game: 2
+  question: Welches chemische Symbol hat Gold?
+  answer: Au
+  wrong:
+  - Ag
+  - Go
+  - Gd
+- game: 2
+  question: Was ist die größte Wüste der Erde?
+  answer: Antarktis
+  wrong:
+  - Sahara
+  - Gobi
+  - Kalahari
+- game: 2
+  question: Wie viele Seiten hat ein Hexagon?
+  answer: '6'
+  wrong:
+  - '5'
+  - '7'
+  - '8'
+- game: 2
+  question: Welches Organ pumpt Blut?
+  answer: Herz
+  wrong:
+  - Leber
+  - Lunge
+  - Niere
+- game: 2
+  question: Welcher Ozean ist der größte?
+  answer: Pazifik
+  wrong:
+  - Atlantik
+  - Indischer Ozean
+  - Arktischer Ozean
+- game: 2
+  question: Wie viele Farben hat die deutsche Flagge?
+  answer: '3'
+  wrong:
+  - '2'
+  - '4'
+  - '5'
+- game: 2
+  question: Welches Tier ist ein Säugetier?
+  answer: Delfin
+  wrong:
+  - Hai
+  - Forelle
+  - Oktopus
+- game: 2
+  question: Welche Zahl ist eine Primzahl?
+  answer: '13'
+  wrong:
+  - '12'
+  - '15'
+  - '21'
+- game: 2
+  question: Wie viele Stunden hat eine Woche?
+  answer: '168'
+  wrong:
+  - '144'
+  - '160'
+  - '180'
+- game: 2
+  question: Welche Stadt liegt in Italien?
+  answer: Florenz
+  wrong:
+  - Lyon
+  - Porto
+  - Basel
+- game: 2
+  question: Welcher Stoff hat die chemische Formel H2O?
+  answer: Wasser
+  wrong:
+  - Sauerstoff
+  - Salz
+  - Kohlendioxid
+- game: 2
+  question: Welcher Planet hat auffällige Ringe?
+  answer: Saturn
+  wrong:
+  - Mars
+  - Merkur
+  - Venus
+- game: 2
+  question: Wie heißt die Hauptstadt von Kanada?
+  answer: Ottawa
+  wrong:
+  - Toronto
+  - Vancouver
+  - Montreal
+- game: 2
+  question: Wie viele Spieler stehen bei Fußball pro Team auf dem Feld?
+  answer: '11'
+  wrong:
+  - '9'
+  - '10'
+  - '12'
+- game: 2
+  question: Welches Land hat die Form eines Stiefels?
+  answer: Italien
+  wrong:
+  - Spanien
+  - Portugal
+  - Griechenland
+- game: 2
+  question: Welches Instrument hat normalerweise 88 Tasten?
+  answer: Klavier
+  wrong:
+  - Gitarre
+  - Trompete
+  - Geige
+- game: 2
+  question: Welche Farbe entsteht aus Blau und Gelb?
+  answer: Grün
+  wrong:
+  - Rot
+  - Orange
+  - Lila
+- game: 2
+  question: Welches ist das kleinste gerade positive ganze Zahl?
+  answer: '2'
+  wrong:
+  - '0'
+  - '1'
+  - '4'
+- game: 2
+  question: Was misst ein Thermometer?
+  answer: Temperatur
+  wrong:
+  - Druck
+  - Geschwindigkeit
+  - Lautstärke
+- game: 2
+  question: Welches Tier legt Eier?
+  answer: Schildkröte
+  wrong:
+  - Hund
+  - Katze
+  - Delfin
+- game: 2
+  question: Wie viele Meter sind ein Kilometer?
+  answer: '1000'
+  wrong:
+  - '100'
+  - '500'
+  - '10000'
+- game: 2
+  question: Welches Gas brauchen Menschen zum Atmen?
+  answer: Sauerstoff
+  wrong:
+  - Helium
+  - Stickstoff
+  - Neon
+- game: 2
+  question: Welcher Monat hat im Normaljahr 28 Tage?
+  answer: Februar
+  wrong:
+  - April
+  - Juni
+  - September
+- game: 2
+  question: Welches Land hat Tokio als Hauptstadt?
+  answer: Japan
+  wrong:
+  - China
+  - Thailand
+  - Südkorea
+- game: 2
+  question: Welcher Stern ist der Erde am nächsten?
+  answer: Sonne
+  wrong:
+  - Sirius
+  - Polarstern
+  - Beteigeuze
+- game: 2
+  question: Wie viele Sekunden hat eine Minute?
+  answer: '60'
+  wrong:
+  - '30'
+  - '50'
+  - '100'
