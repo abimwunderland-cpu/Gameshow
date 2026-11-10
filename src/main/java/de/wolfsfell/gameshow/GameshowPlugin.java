@@ -235,7 +235,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 if(msg.equalsIgnoreCase(correctAnswer)){
                     int pts=1;
                     quizScores.merge(t,pts,Integer::sum);individual.merge(p.getUniqueId(),pts,Integer::sum);
-                    broadcast("§aRichtig! §f"+p.getName()+" §7("+t+") §a+"+pts+" §7– "+correctAnswer);
+                    broadcast("§a"+t+" – RICHTIG! §a+1 Punkt §7("+p.getName()+") §f– "+correctAnswer);
                     buzzed=null;buzzDeadline=0;nextQuestion();
                 } else {broadcast("§cFalsch! §7"+t+" darf diese Runde nicht mehr buzzern.");buzzed=null;buzzDeadline=0;}
             }else if(game==2){
@@ -272,24 +272,25 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     private void nextQuestion(){
         if(questionNumber>=10){running=false;answerDeadline=0;broadcast("§d10 Runden beendet! §7Mit /wg finishround die Punkte speichern.");return;}
-        List<QuizQuestion> pool=questions.stream().filter(q->q.game()==game&&!usedQuestions.contains(q.prompt())).toList();
+        List<QuizQuestion> pool=questions.stream().filter(q->q.game()==game&&!usedQuestions.contains(q.game()+":"+q.answer())).toList();
         if(pool.isEmpty()){broadcast("§dFragenpool für Spiel "+game+" aufgebraucht.");running=false;return;}
-        QuizQuestion q=pool.get(random.nextInt(pool.size()));usedQuestions.add(q.prompt());questionNumber++;
+        QuizQuestion q=pool.get(random.nextInt(pool.size()));usedQuestions.add(q.game()+":"+q.answer());questionNumber++;
         currentPrompt=q.prompt();correctAnswer=q.answer();responses.clear();estimates.clear();buzzed=null;buzzDeadline=0;attemptedBuzzers.clear();
         if(game==2){List<String> opts=new ArrayList<>();opts.add(q.answer());opts.addAll(Arrays.asList(q.wrong()));Collections.shuffle(opts);choices=opts.toArray(String[]::new);}
         answerDeadline=game==1?0:System.currentTimeMillis()+7000L;
         broadcast("§dFrage "+questionNumber+": §f"+currentPrompt);
         if(game==2)for(int i=0;i<4;i++)broadcast("§7"+(char)('A'+i)+") §f"+choices[i]);
         if(game==5)broadcast("§7Schätzung im Chat eingeben!");
-        if(game==1)broadcast("§7Drücke deinen Team-Buzzer! Danach 5 Sekunden zum Antworten.");
+        if(game==1)broadcast("§7Drücke deinen Team-Buzzer! Danach 5 Sekunden zum Antworten. §c(Bildschirm noch nicht implementiert)");
     }
     private void resolveQuestion(){
         if(game==2){
             String right="";for(int i=0;i<4;i++)if(choices[i].equals(correctAnswer))right=""+(char)('A'+i);
             broadcast("§aRichtige Antwort: §f"+right+" §7– "+correctAnswer);
             for(String t:teams.keySet()){
+                if(!selected.containsKey(t) || (teams.get(t)==null || teams.get(t).isEmpty()))continue;
                 String v=responses.getOrDefault(t,"–");broadcast("§7"+t+": §f"+v);
-                if(v.equals(right)){quizScores.merge(t,1,Integer::sum);UUID id=selected.get(t);if(id!=null)individual.merge(id,1,Integer::sum);}
+                if(v.equals(right)){quizScores.merge(t,1,Integer::sum);UUID id=selected.get(t);if(id!=null)individual.merge(id,1,Integer::sum);broadcast("§a"+t+" – RICHTIG! +1 Punkt");}
             }
         }else if(game==5){
             int correct;try{correct=Integer.parseInt(correctAnswer);}catch(NumberFormatException ex){broadcast("Ungültige Schätzfrage.");return;}
@@ -299,7 +300,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 long diff=Math.abs((long)entry.getValue()-correct);
                 int pts=diff==best?(diff==0?2:1):0;
                 broadcast("§7"+entry.getKey()+": §f"+entry.getValue()+(pts>0?" §a+"+pts:""));
-                if(pts>0){quizScores.merge(entry.getKey(),pts,Integer::sum);UUID id=selected.get(entry.getKey());if(id!=null)individual.merge(id,pts,Integer::sum);}
+                if(pts>0){broadcast("§a"+entry.getKey()+" – +"+pts+" Punkt(e)!");quizScores.merge(entry.getKey(),pts,Integer::sum);UUID id=selected.get(entry.getKey());if(id!=null)individual.merge(id,pts,Integer::sum);}
             }
         }
         if(running)Bukkit.getScheduler().runTaskLater(this,()->{if(running && (game==2||game==5))nextQuestion();},80L);
@@ -386,14 +387,21 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         for(var e:purchases.entrySet())for(var item:e.getValue().entrySet())y.set("purchases."+e.getKey()+"."+item.getKey(),item.getValue());
         try{y.save(stateFile);}catch(IOException ex){getLogger().severe("State save failed: "+ex.getMessage());}
     }
+    private boolean participatedInRound(String t,int round){
+        if((teams.get(t)==null || teams.get(t).isEmpty()))return false;
+        if(round==1 || round==2 || round==5)return selected.containsKey(t) && teams.get(t).contains(selected.get(t));
+        return true;
+    }
     private void rankRound(CommandSender s,int n){
         if(n<1||n>5){say(s,"Nur Vorrundenspiele 1-5.");return;}
         List<String> order=new ArrayList<>(teams.keySet());order.sort((a,b)->Integer.compare(raw.getOrDefault(b,Map.of()).getOrDefault(n,Integer.MIN_VALUE),raw.getOrDefault(a,Map.of()).getOrDefault(n,Integer.MIN_VALUE)));
-        if(order.stream().anyMatch(t->!raw.getOrDefault(t,Map.of()).containsKey(n))){say(s,"Für jedes Team muss zuerst /wg raw <Team> "+n+" <Wert> gesetzt werden.");return;}
+        if(order.stream().noneMatch(t->raw.getOrDefault(t,Map.of()).containsKey(n))){say(s,"Noch keine Ergebnisse für Spiel "+n+" gespeichert.");return;}
         for(String t:teams.keySet())qualifying.put(t,0);
         for(int round=1;round<=5;round++) {
-            final int r=round; if(teams.keySet().stream().anyMatch(t->!raw.getOrDefault(t,Map.of()).containsKey(r)))continue;
-            List<String> sorted=new ArrayList<>(teams.keySet());sorted.sort((a,b)->Integer.compare(raw.get(b).get(r),raw.get(a).get(r)));
+            final int r=round; if(teams.keySet().stream().noneMatch(t->raw.getOrDefault(t,Map.of()).containsKey(r)))continue;
+            List<String> sorted=new ArrayList<>(teams.keySet());
+            sorted.removeIf(t->teams.get(t).isEmpty() || !raw.getOrDefault(t,Map.of()).containsKey(r) || !participatedInRound(t,r));
+            sorted.sort((a,b)->Integer.compare(raw.get(b).get(r),raw.get(a).get(r)));
             for(int i=0;i<sorted.size();){int j=i+1;while(j<sorted.size()&&raw.get(sorted.get(i)).get(r).equals(raw.get(sorted.get(j)).get(r)))j++;
                 int sum=0;for(int z=i;z<j;z++)sum+=RANK_POINTS[Math.min(z,7)];int points=Math.round((float)sum/(j-i));
                 for(int z=i;z<j;z++)qualifying.merge(sorted.get(z),points,Integer::sum);i=j;
@@ -703,9 +711,9 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 case "next" -> {if(!running || !List.of(1,2,5).contains(game))break;nextQuestion();return true;}
                 case "finishround" -> {
                     if(game>=1&&game<=5){
-                        if(game==1||game==2||game==5)for(String t:teams.keySet())raw.computeIfAbsent(t,k->new HashMap<>()).put(game,quizScores.getOrDefault(t,0));
-                        if(game==3)for(String t:teams.keySet())raw.computeIfAbsent(t,k->new HashMap<>()).put(game,raceFinishes.containsKey(t)?(1000-(int)(raceFinishes.get(t)-startMillis)/1000):raceProgress.getOrDefault(t,0));
-                        if(game==4)for(String t:teams.keySet())raw.computeIfAbsent(t,k->new HashMap<>()).put(game,archeryHits.getOrDefault(t,0));
+                        if(game==1||game==2||game==5)for(String t:teams.keySet())if(participatedInRound(t,game))raw.computeIfAbsent(t,k->new HashMap<>()).put(game,quizScores.getOrDefault(t,0));
+                        if(game==3)for(String t:teams.keySet())if(!teams.get(t).isEmpty() && raceFinishes.containsKey(t))raw.computeIfAbsent(t,k->new HashMap<>()).put(game,raceFinishes.containsKey(t)?(1000-(int)(raceFinishes.get(t)-startMillis)/1000):raceProgress.getOrDefault(t,0));
+                        if(game==4)for(String t:teams.keySet())if(!teams.get(t).isEmpty() && archeryHits.containsKey(t))raw.computeIfAbsent(t,k->new HashMap<>()).put(game,archeryHits.getOrDefault(t,0));
                         running=false;rankRound(sender,game);broadcast("§dSpiel "+game+" abgeschlossen.");return true;
                     }break;
                 }
