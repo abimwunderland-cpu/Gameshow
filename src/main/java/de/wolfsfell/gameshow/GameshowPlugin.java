@@ -412,18 +412,18 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     private void nextQuestion(){
         if(questionNumber >= (game==2?15:10)){running=false;game1QuestionActive=false;answerDeadline=0;game2Accepting=false;game2Revealing=false;restoreGame2Inventories();gameOneScreen.idle();broadcast("§d"+questionNumber+" Fragen beendet! §7Mit /wg finishround die Punkte speichern.");saveState();return;}
-        List<QuizQuestion> pool=questions.stream().filter(q->q.game()==game&&!usedQuestions.contains(q.game()+":"+q.answer()) && (game!=1 || GAME1_ITEMS.contains(q.answer()))).toList();
+        List<QuizQuestion> pool=questions.stream().filter(q->q.game()==game&&!usedQuestions.contains(q.game()+":"+(q.game()==2?q.prompt():q.answer())) && (game!=1 || GAME1_ITEMS.contains(q.answer()))).toList();
         if(game==2){
             int level=questionNumber<4?1:questionNumber<11?2:3;
             List<QuizQuestion> graded=pool.stream().filter(q->quizDifficulty(q.prompt())==level).toList();
             if(!graded.isEmpty())pool=graded;
         }
         if(pool.isEmpty()){broadcast("§dFragenpool für Spiel "+game+" aufgebraucht.");running=false;if(game==2)restoreGame2Inventories();return;}
-        QuizQuestion q=pool.get(random.nextInt(pool.size()));usedQuestions.add(q.game()+":"+q.answer());questionNumber++;
+        QuizQuestion q=pool.get(random.nextInt(pool.size()));usedQuestions.add(q.game()+":"+(q.game()==2?q.prompt():q.answer()));questionNumber++;
         currentPrompt=q.prompt().replaceFirst("^\\[(LEICHT|MITTEL|SCHWER)\\] ","");correctAnswer=q.answer();responses.clear();estimates.clear();buzzed=null;buzzDeadline=0;attemptedBuzzers.clear();
         if(game==2){List<String> opts=new ArrayList<>();opts.add(q.answer());opts.addAll(Arrays.asList(q.wrong()));Collections.shuffle(opts);choices=opts.toArray(String[]::new);}
-        answerDeadline=game==1?0:System.currentTimeMillis()+(game==2?9000L:7000L);
-        if(game==2){game2Accepting=true;game2Revealing=false;game2LastSecond=-1;gameOneScreen.showQuiz2(questionNumber,currentPrompt,choices,9,0,selected.size(),null);}
+        answerDeadline=game==1?0:System.currentTimeMillis()+(game==2?7000L:7000L);
+        if(game==2){game2Accepting=true;game2Revealing=false;game2LastSecond=-1;gameOneScreen.showQuiz2(questionNumber,currentPrompt,choices,7,0,selected.size(),null);}
         broadcast("§dFrage "+questionNumber+": §f"+currentPrompt);
         if(game==2)for(int i=0;i<4;i++)broadcast("§7"+(char)('A'+i)+") §f"+choices[i]);
         if(game==5)broadcast("§7Schätzung im Chat eingeben!");

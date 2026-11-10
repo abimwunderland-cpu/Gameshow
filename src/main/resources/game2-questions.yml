@@ -1,421 +1,568 @@
 questions:
 - game: 2
-  question: '[LEICHT] Welche Dimension beherbergt den Enderdrachen?'
-  answer: Das Ende
+  question: '[LEICHT] Wie viele Bücherregale braucht man für Level-30-Verzauberungen?'
+  answer: '15'
   wrong:
-  - Nether
-  - Oberwelt
-  - Deep Dark
+  - '12'
+  - '18'
+  - '20'
 - game: 2
-  question: '[LEICHT] Welcher Block fällt ohne Unterstützung nach unten?'
-  answer: Sand
+  question: '[LEICHT] Welches Material benötigt man zum Reparieren einer Elytra am Amboss?'
+  answer: Phantomhaut
   wrong:
-  - Stein
-  - Obsidian
-  - Grasblock
+  - Leder
+  - Feder
+  - Netheritbarren
 - game: 2
-  question: '[LEICHT] Welche Farbe hat ein gewöhnlicher Creeper?'
-  answer: Grün
+  question: '[LEICHT] Womit lässt sich ein Braustand betreiben?'
+  answer: Lohenstaub
   wrong:
-  - Blau
-  - Rot
-  - Violett
+  - Redstone
+  - Kohle
+  - Glühsteinstaub
 - game: 2
-  question: '[LEICHT] Welches Item zähmt einen Wolf?'
-  answer: Knochen
+  question: '[LEICHT] Welcher Mob wird durch einen Blitz zum Hexer?'
+  answer: Dorfbewohner
   wrong:
-  - Weizen
-  - Karotte
-  - Rohes Huhn
-- game: 2
-  question: '[LEICHT] Was benötigt man für eine Fackel?'
-  answer: Stock und Kohle
-  wrong:
-  - Stock und Eisen
-  - Stock und Kupfer
-  - Stock und Redstone
-- game: 2
-  question: '[LEICHT] Wie viele Bretter ergeben sich aus einem Holzstamm?'
-  answer: '4'
-  wrong:
-  - '2'
-  - '6'
-  - '8'
-- game: 2
-  question: '[LEICHT] Was droppen Kühe unter anderem?'
-  answer: Leder
-  wrong:
-  - Wolle
-  - Federn
-  - Tinte
-- game: 2
-  question: '[LEICHT] Welches Tier liefert Wolle?'
-  answer: Schaf
-  wrong:
-  - Kuh
-  - Huhn
-  - Schwein
-- game: 2
-  question: '[LEICHT] Welcher Mob schießt mit Pfeilen?'
-  answer: Skelett
-  wrong:
+  - Plünderer
   - Zombie
-  - Creeper
-  - Schleim
+  - Schneegolem
 - game: 2
-  question: '[LEICHT] Welcher Planet ist der Sonne am nächsten?'
-  answer: Merkur
+  question: '[LEICHT] Welche Spitzhacke baut Obsidian in Survival ab?'
+  answer: Diamantspitzhacke
   wrong:
-  - Venus
-  - Mars
-  - Erde
+  - Eisenspitzhacke
+  - Steinspitzhacke
+  - Goldspitzhacke
 - game: 2
-  question: '[LEICHT] Wie viele Minuten hat ein Tag?'
-  answer: '1440'
+  question: '[LEICHT] Welche Pflanze wächst auf Seelensand?'
+  answer: Netherwarze
   wrong:
-  - '1200'
-  - '1240'
-  - '1600'
+  - Kakaobohne
+  - Süßbeere
+  - Kaktus
 - game: 2
-  question: '[LEICHT] Wie viele Seiten hat ein Hexagon?'
-  answer: '6'
+  question: '[LEICHT] Wie viele Augen kann ein Endportalrahmen maximal benötigen?'
+  answer: '12'
   wrong:
-  - '5'
-  - '7'
   - '8'
+  - '10'
+  - '16'
 - game: 2
-  question: '[LEICHT] Welches Organ pumpt Blut?'
-  answer: Herz
+  question: '[LEICHT] Welches Item bringt Piglins zum Tauschen?'
+  answer: Goldbarren
   wrong:
-  - Leber
-  - Lunge
-  - Niere
+  - Goldklumpen
+  - Goldblock
+  - Goldene Karotte
 - game: 2
-  question: '[LEICHT] Welcher Ozean ist der größte?'
-  answer: Pazifik
+  question: '[LEICHT] Was braucht man zum Züchten von Schildkröten?'
+  answer: Seegras
   wrong:
-  - Atlantik
-  - Indischer Ozean
-  - Arktischer Ozean
+  - Seetang
+  - Kelpblock
+  - Tropenfisch
 - game: 2
-  question: '[LEICHT] Wie viele Farben hat die deutsche Flagge?'
+  question: '[LEICHT] Welches Erz lässt sich nur mit Eisen oder besser abbauen?'
+  answer: Diamanterz
+  wrong:
+  - Kohleerz
+  - Kupfererz
+  - Netherquarzerz
+- game: 2
+  question: '[LEICHT] Wie viele Eisenbarren benötigt ein Amboss?'
+  answer: '31'
+  wrong:
+  - '27'
+  - '32'
+  - '36'
+- game: 2
+  question: '[LEICHT] Welcher Block macht Wasser zu einer Blasensäule nach oben?'
+  answer: Seelensand
+  wrong:
+  - Magma
+  - Schlamm
+  - Sand
+- game: 2
+  question: '[LEICHT] Wie viele Blöcke hoch ist eine Standard-Netherportalöffnung mindestens?'
   answer: '3'
   wrong:
   - '2'
   - '4'
   - '5'
 - game: 2
-  question: '[LEICHT] Welche Stadt liegt in Italien?'
-  answer: Florenz
+  question: '[LEICHT] Was benötigt man für einen Komparator?'
+  answer: Netherquarz
   wrong:
-  - Lyon
-  - Porto
-  - Basel
-- game: 2
-  question: '[LEICHT] Welcher Stoff hat die chemische Formel H2O?'
-  answer: Wasser
-  wrong:
-  - Sauerstoff
-  - Salz
-  - Kohlendioxid
-- game: 2
-  question: '[LEICHT] Wie viele Spieler stehen bei Fußball pro Team auf dem Feld?'
-  answer: '11'
-  wrong:
-  - '9'
-  - '10'
-  - '12'
-- game: 2
-  question: '[LEICHT] Welches Land hat die Form eines Stiefels?'
-  answer: Italien
-  wrong:
-  - Spanien
-  - Portugal
-  - Griechenland
-- game: 2
-  question: '[LEICHT] Wie viele Meter sind ein Kilometer?'
-  answer: '1000'
-  wrong:
-  - '100'
-  - '500'
-  - '10000'
-- game: 2
-  question: '[MITTEL] Womit stellt man einen Netherite-Barren her?'
-  answer: 4 Netherite-Schrott und 4 Goldbarren
-  wrong:
-  - 4 Netherite-Schrott und 4 Eisenbarren
-  - 4 Antiker Schrott und 4 Diamanten
-  - 1 Netherstern und 8 Goldbarren
-- game: 2
-  question: '[MITTEL] Wie viele Obsidianblöcke braucht das kleinste Netherportal?'
-  answer: '10'
-  wrong:
-  - '8'
-  - '12'
-  - '14'
-- game: 2
-  question: '[MITTEL] Was braucht ein Leuchtfeuer zur Aktivierung?'
-  answer: Eine Pyramide aus Mineralblöcken
-  wrong:
-  - Einen Redstone-Block
-  - Vier Enderkristalle
-  - Ein Lagerfeuer
-- game: 2
-  question: '[MITTEL] Wie heißt die unterirdische Struktur mit dem Endportal?'
-  answer: Festung
-  wrong:
-  - Bastion
-  - Waldanwesen
-  - Dschungeltempel
-- game: 2
-  question: '[MITTEL] Welcher Gegenstand repariert Elytren am Amboss?'
-  answer: Phantomhaut
-  wrong:
-  - Leder
-  - Papier
+  - Amethyst
+  - Lapislazuli
   - Kupfer
 - game: 2
-  question: '[MITTEL] Welcher Mob wird durch Blöcke mit Sculk-Sensoren alarmiert?'
-  answer: Warden
+  question: '[LEICHT] Welche Verzauberung hilft beim Atmen unter Wasser?'
+  answer: Atmung
   wrong:
-  - Enderman
-  - Blaze
+  - Wasseraffinität
+  - Wasserläufer
+  - Dornen
+- game: 2
+  question: '[LEICHT] Welches Item wird für einen Leuchtfeuerstrahl benötigt?'
+  answer: Netherstern
+  wrong:
+  - Drachenei
+  - Enderkristall
+  - Echolot
+- game: 2
+  question: '[LEICHT] Wie viele Honigwaben braucht man für einen Bienenstock?'
+  answer: '3'
+  wrong:
+  - '2'
+  - '4'
+  - '6'
+- game: 2
+  question: '[LEICHT] Welche Kreatur bewacht ein Ozeanmonument?'
+  answer: Großer Wächter
+  wrong:
+  - Warden
+  - Verwüster
   - Shulker
 - game: 2
-  question: '[MITTEL] Was passiert beim Schlafen in einem Bett im Nether?'
-  answer: Es explodiert
+  question: '[LEICHT] Welche Holzart erhält man aus einem Mangrovenbaum?'
+  answer: Mangrovenholz
   wrong:
-  - Man wacht in der Oberwelt auf
-  - Es wird Nacht
-  - Man teleportiert sich
+  - Kirschholz
+  - Akazienholz
+  - Dschungelholz
 - game: 2
-  question: '[MITTEL] Welche Frucht teleportiert dich zufällig?'
-  answer: Chorusfrucht
+  question: '[LEICHT] Was entsteht aus einem Skelett in Pulverschnee?'
+  answer: Streuner
   wrong:
-  - Süßbeere
-  - Glühbeere
-  - Melone
+  - Witherskelett
+  - Husk
+  - Ertrunkener
 - game: 2
-  question: '[MITTEL] Welches Werkzeug baut Blätter besonders schnell ab?'
-  answer: Schere
+  question: '[LEICHT] Was braucht man zum Aktivieren eines Respawn-Ankers?'
+  answer: Glowstone
   wrong:
-  - Schaufel
-  - Spitzhacke
-  - Angel
+  - Redstone
+  - Lohenstaub
+  - Amethyst
 - game: 2
-  question: '[MITTEL] Welches Item wird aus drei Zuckerrohren gefertigt?'
+  question: '[LEICHT] Welche Verzauberung erhöht die Beute von Mobs?'
+  answer: Plünderung
+  wrong:
+  - Glück
+  - Effizienz
+  - Bann
+- game: 2
+  question: '[LEICHT] Was kann man mit einem Pinsel aus verdächtigem Sand holen?'
+  answer: Archäologie-Beute
+  wrong:
+  - Erzadern
+  - Netherit
+  - Erfahrungsflaschen
+- game: 2
+  question: '[LEICHT] Was benötigt ein Kartografietisch zum Vergrößern einer Karte?'
   answer: Papier
   wrong:
-  - Brot
   - Buch
-  - Karte
+  - Kompass
+  - Feder
 - game: 2
-  question: '[MITTEL] Welcher Gegenstand hilft bei der Navigation zum Spawn?'
-  answer: Kompass
+  question: '[LEICHT] Wie viele Enderkristalle braucht man zum Wiederbeleben des Drachen?'
+  answer: '4'
   wrong:
-  - Uhr
-  - Fernrohr
-  - Angel
-- game: 2
-  question: '[MITTEL] Welche Pflanze wächst auf Seelensand?'
-  answer: Netherwarze
-  wrong:
-  - Kaktus
-  - Bambus
-  - Seetang
-- game: 2
-  question: '[MITTEL] Was verwandelt einen Dorfbewohner in einen Zombie-Dorfbewohner?'
-  answer: Ein Zombieangriff
-  wrong:
-  - Ein Blitz
-  - Ein Schneeball
-  - Ein Pfeil
-- game: 2
-  question: '[MITTEL] Welcher Gegenstand kann Erfahrung speichern und reparieren helfen?'
-  answer: Verzauberung Reparatur
-  wrong:
-  - Verzauberung Schärfe
-  - Verzauberung Effizienz
-  - Verzauberung Glück
-- game: 2
-  question: '[MITTEL] Wie viele Kontinente gibt es üblicherweise?'
-  answer: '7'
-  wrong:
-  - '5'
+  - '2'
   - '6'
   - '8'
 - game: 2
-  question: '[MITTEL] Was ist die Hauptstadt von Australien?'
-  answer: Canberra
+  question: '[LEICHT] Welche Kreatur kann Gegenstände vom Boden aufsammeln und sortieren?'
+  answer: Allay
   wrong:
-  - Sydney
-  - Melbourne
-  - Perth
+  - Fledermaus
+  - Papagei
+  - Schneegolem
 - game: 2
-  question: '[MITTEL] Welches chemische Symbol hat Gold?'
-  answer: Au
+  question: '[MITTEL] Welcher Block gibt einem Komparator ein Signal je nach Füllstand?'
+  answer: Komposter
   wrong:
-  - Ag
-  - Go
-  - Gd
+  - Obsidian
+  - Bücherregal
+  - Eisblock
 - game: 2
-  question: '[MITTEL] Welche Zahl ist eine Primzahl?'
-  answer: '13'
+  question: '[MITTEL] Welche Verzauberung ist mit Unendlichkeit auf einem Bogen unvereinbar?'
+  answer: Reparatur
   wrong:
-  - '12'
-  - '15'
-  - '21'
+  - Stärke
+  - Flamme
+  - Schlag
 - game: 2
-  question: '[MITTEL] Wie heißt die Hauptstadt von Kanada?'
-  answer: Ottawa
+  question: '[MITTEL] Was ist die maximale Stufe von Federfall im Survival?'
+  answer: '4'
   wrong:
-  - Toronto
-  - Vancouver
-  - Montreal
+  - '3'
+  - '5'
+  - '6'
 - game: 2
-  question: '[MITTEL] Welches Instrument hat normalerweise 88 Tasten?'
-  answer: Klavier
+  question: '[MITTEL] Wie viele Hungerpunkte füllt eine goldene Karotte auf?'
+  answer: '6'
   wrong:
-  - Gitarre
-  - Trompete
-  - Geige
-- game: 2
-  question: '[SCHWER] Wie viele Spielticks hat eine Minecraft-Sekunde?'
-  answer: '20'
-  wrong:
+  - '4'
+  - '8'
   - '10'
-  - '30'
-  - '60'
 - game: 2
-  question: '[SCHWER] Wie viele Bücherregale braucht ein Zaubertisch maximal?'
+  question: '[MITTEL] Wie weit reicht ein normales Redstone-Signal maximal?'
   answer: '15'
   wrong:
   - '12'
   - '16'
   - '20'
 - game: 2
-  question: '[SCHWER] Welche Y-Höhe gilt in neueren Versionen als besonders gut für Diamanten?'
-  answer: '-59'
+  question: '[MITTEL] Welche Kreatur kann aus einem normalen Piglin in der Oberwelt werden?'
+  answer: Zombifizierter Piglin
   wrong:
-  - '12'
-  - '0'
-  - '-16'
+  - Hoglin
+  - Zombie
+  - Piglin-Barbar
 - game: 2
-  question: '[SCHWER] Wie viele Blöcke reichen für eine vollständige Beacon-Basis mit vier Ebenen?'
-  answer: '164'
+  question: '[MITTEL] Welche Verzauberung ist mit Glück auf Werkzeugen unvereinbar?'
+  answer: Behutsamkeit
   wrong:
-  - '81'
-  - '125'
-  - '169'
+  - Effizienz
+  - Haltbarkeit
+  - Reparatur
 - game: 2
-  question: '[SCHWER] Welcher Status-Effekt wird durch einen normalen Milcheimer entfernt?'
-  answer: Alle gewöhnlichen Statuseffekte
+  question: '[MITTEL] Wie viele Schneebälle lassen sich in einem Stack stapeln?'
+  answer: '16'
   wrong:
-  - Nur Gift
-  - Nur Schwäche
-  - Nur positive Effekte
+  - '32'
+  - '64'
+  - '8'
 - game: 2
-  question: '[SCHWER] Wie viele Items passen maximal in eine volle Doppelkiste mit 64er-Stacks?'
-  answer: '3456'
+  question: '[MITTEL] Wie viele Tränke kann ein Braustand gleichzeitig brauen?'
+  answer: '3'
   wrong:
-  - '1728'
-  - '2304'
-  - '4096'
+  - '2'
+  - '4'
+  - '5'
 - game: 2
-  question: '[SCHWER] Wie hoch ist die normale Minecraft-Weltobergrenze zum Bauen seit 1.18?'
-  answer: Y=319
+  question: '[MITTEL] Was passiert bei einem Bett-Versuch im Nether?'
+  answer: Es explodiert
   wrong:
-  - Y=255
-  - Y=256
-  - Y=383
+  - Es setzt Spawn
+  - Es verschwindet
+  - Es wird Obsidian
 - game: 2
-  question: '[SCHWER] Welche Struktur enthält einen Respawn-Anker als natürliches Loot-Item?'
-  answer: Bastionsruine
+  question: '[MITTEL] Welche Verzauberung beschleunigt das Abbauen unter Wasser?'
+  answer: Wasseraffinität
   wrong:
-  - Endstadt
+  - Atmung
+  - Wasserläufer
+  - Seelenläufer
+- game: 2
+  question: '[MITTEL] Welche Trankzutat verlängert normalerweise die Wirkungsdauer?'
+  answer: Redstone-Staub
+  wrong:
+  - Glowstone-Staub
+  - Schießpulver
+  - Drachenatem
+- game: 2
+  question: '[MITTEL] Welche Zutat macht aus einem Trank einen Wurftrank?'
+  answer: Schießpulver
+  wrong:
+  - Redstone
+  - Glowstone
+  - Zucker
+- game: 2
+  question: '[MITTEL] Welcher Mob droppt bei Spielertod einen Totem der Unsterblichkeit?'
+  answer: Magier
+  wrong:
+  - Hexe
+  - Plünderer
+  - Verwüster
+- game: 2
+  question: '[MITTEL] Welche Blöcke kann ein Enderman normalerweise aufheben?'
+  answer: Grasblock
+  wrong:
+  - Obsidian
+  - Netheritblock
+  - Bedrock
+- game: 2
+  question: '[MITTEL] Welche Struktur enthält typischerweise eine Endportal-Kammer?'
+  answer: Festung
+  wrong:
+  - Waldanwesen
+  - Bastion
+  - Antike Stadt
+- game: 2
+  question: '[MITTEL] Was passiert beim Einsatz eines Dreizacks mit Sog im Regen?'
+  answer: Spieler wird gezogen
+  wrong:
+  - Blitz schlägt ein
+  - Dreizack kehrt zurück
+  - Ziel wird vergiftet
+- game: 2
+  question: '[MITTEL] Wie viele Netherite-Schrott braucht man für einen Netheritbarren?'
+  answer: '4'
+  wrong:
+  - '3'
+  - '5'
+  - '8'
+- game: 2
+  question: '[MITTEL] Welcher Block kann mit einem Sculk-Katalysator entstehen?'
+  answer: Sculk
+  wrong:
+  - Obsidian
+  - Netherwarzenblock
+  - Tiefenschiefer
+- game: 2
+  question: '[MITTEL] Was macht ein Schleifstein mit gewöhnlichen Verzauberungen?'
+  answer: Entfernt sie
+  wrong:
+  - Verdoppelt sie
+  - Überträgt sie
+  - Versteckt sie
+- game: 2
+  question: '[MITTEL] Welcher Gegenstand wird beim Schmiedetisch für Netherit-Upgrade zusätzlich benötigt?'
+  answer: Netherit-Upgradevorlage
+  wrong:
+  - Enderkristall
+  - Amethystsplitter
+  - Netherstern
+- game: 2
+  question: '[MITTEL] Welche Struktur findet man mit einem Auge des Enders?'
+  answer: Festung
+  wrong:
+  - Bastion
   - Wüstentempel
-  - Ozeanmonument
+  - Waldanwesen
 - game: 2
-  question: '[SCHWER] Was ist die Ordnungszahl von Wolfram?'
-  answer: '74'
+  question: '[MITTEL] Welcher Effekt entsteht beim Essen eines Chorusfruchts?'
+  answer: Zufallsteleport
   wrong:
-  - '72'
-  - '76'
-  - '82'
+  - Regeneration
+  - Schwebekraft
+  - Blindheit
 - game: 2
-  question: '[SCHWER] Welcher Planet hat den kürzesten Umlauf um die Sonne?'
-  answer: Merkur
+  question: '[MITTEL] Welcher Block wandelt einen Dorfbewohner in einen Kartografen um?'
+  answer: Kartografietisch
   wrong:
-  - Venus
-  - Mars
-  - Erde
+  - Lesepult
+  - Webstuhl
+  - Steinsäge
 - game: 2
-  question: '[SCHWER] Welche SI-Einheit misst elektrische Kapazität?'
-  answer: Farad
+  question: '[MITTEL] Was benötigt man für eine geladenen Creeper?'
+  answer: Blitzeinschlag
   wrong:
-  - Henry
-  - Tesla
-  - Weber
+  - Feuerladung
+  - Lava
+  - Trank der Stärke
 - game: 2
-  question: '[SCHWER] In welchem Jahr fiel die Berliner Mauer?'
-  answer: '1989'
+  question: '[MITTEL] Welche Verzauberung verhindert das Verschwinden des Dreizacks nach dem Wurf?'
+  answer: Treue
   wrong:
-  - '1987'
-  - '1990'
-  - '1991'
+  - Sog
+  - Entladung
+  - Harpune
 - game: 2
-  question: '[SCHWER] Welches chemische Element trägt das Symbol Sb?'
-  answer: Antimon
+  question: '[MITTEL] Was erhöht die Stufe eines Leuchtfeuers?'
+  answer: Weitere Mineralblock-Schichten
   wrong:
-  - Silber
-  - Schwefel
-  - Strontium
+  - Mehr Glas
+  - Mehr Nethersterne
+  - Mehr Licht
 - game: 2
-  question: '[SCHWER] Welche Zahl ist die Quadratwurzel aus 2025?'
-  answer: '45'
+  question: '[MITTEL] Welche Pflanze kann man mit Knochenmehl direkt zu einem Baum wachsen lassen?'
+  answer: Azaleenbusch
   wrong:
-  - '35'
+  - Toter Busch
+  - Netherwarze
+  - Seerose
+- game: 2
+  question: '[MITTEL] Welcher Mob wird von Schildkröteneiern angelockt?'
+  answer: Zombie
+  wrong:
+  - Creeper
+  - Skelett
+  - Spinne
+- game: 2
+  question: '[MITTEL] Welche Verzauberung ist auf einer Armbrust mit Mehrfachschuss unvereinbar?'
+  answer: Durchschuss
+  wrong:
+  - Schnellladen
+  - Haltbarkeit
+  - Reparatur
+- game: 2
+  question: '[MITTEL] Welcher Gegenstand lässt sich mit einem Schmiedetisch nicht direkt verbessern?'
+  answer: Elytra
+  wrong:
+  - Diamantbrustplatte
+  - Diamantschwert
+  - Diamantspitzhacke
+- game: 2
+  question: '[MITTEL] Was wird aus einem Zombie nach längerer Zeit unter Wasser?'
+  answer: Ertrunkener
+  wrong:
+  - Husk
+  - Streuner
+  - Piglin
+- game: 2
+  question: '[MITTEL] Wie viele maximale Schutz-Stufen hat normale Schutz-Verzauberung?'
+  answer: '4'
+  wrong:
+  - '3'
+  - '5'
+  - '6'
+- game: 2
+  question: '[MITTEL] Welche Art von Schaden wird durch Federfall reduziert?'
+  answer: Fallschaden
+  wrong:
+  - Feuerschaden
+  - Projektilschaden
+  - Explosionsschaden
+- game: 2
+  question: '[SCHWER] Ab welcher Amboss-Kostenstufe zeigt Java-Survival „Zu teuer“?'
+  answer: '40'
+  wrong:
+  - '39'
+  - '41'
+  - '50'
+- game: 2
+  question: '[SCHWER] Wie hoch ist die Chance auf Amboss-Abnutzung pro Benutzung?'
+  answer: 12 %
+  wrong:
+  - 10 %
+  - 15 %
+  - 20 %
+- game: 2
+  question: '[SCHWER] Wie viele Bücherregale über 15 verbessern den Verzauberungstisch zusätzlich?'
+  answer: '0'
+  wrong:
+  - '1'
+  - '5'
+  - '10'
+- game: 2
+  question: '[SCHWER] Wie hoch ist die maximale Verzauberungsstufe von Seelenläufer?'
+  answer: '3'
+  wrong:
+  - '2'
+  - '4'
+  - '5'
+- game: 2
+  question: '[SCHWER] Welche Verzauberung ist mit Sog auf einem Dreizack unvereinbar?'
+  answer: Treue
+  wrong:
+  - Haltbarkeit
+  - Reparatur
+  - Harpune
+- game: 2
+  question: '[SCHWER] Wie viele Redstone-Ticks dauert ein Repeater auf maximaler Einstellung?'
+  answer: '4'
+  wrong:
+  - '2'
+  - '3'
+  - '5'
+- game: 2
+  question: '[SCHWER] Wie viele Spielticks entsprechen einem Redstone-Tick?'
+  answer: '2'
+  wrong:
+  - '1'
+  - '4'
+  - '5'
+- game: 2
+  question: '[SCHWER] Wie viele Game-Ticks vergehen pro Sekunde bei 20 TPS?'
+  answer: '20'
+  wrong:
+  - '10'
   - '40'
-  - '55'
+  - '60'
 - game: 2
-  question: '[SCHWER] Wie heißt die Meerenge zwischen Spanien und Marokko?'
-  answer: Straße von Gibraltar
+  question: '[SCHWER] Wie viele Blöcke hoch ist der maximale Beacon-Pyramidenaufbau?'
+  answer: '4'
   wrong:
-  - Bosporus
-  - Straße von Hormus
-  - Beringstraße
+  - '3'
+  - '5'
+  - '6'
 - game: 2
-  question: '[SCHWER] Welches Land besitzt die meisten Zeitzonen einschließlich Überseegebieten?'
-  answer: Frankreich
+  question: '[SCHWER] Welche Verzauberung kann nicht direkt am Zaubertisch erscheinen?'
+  answer: Reparatur
   wrong:
-  - Russland
-  - USA
-  - China
+  - Effizienz
+  - Haltbarkeit
+  - Schärfe
 - game: 2
-  question: '[SCHWER] Welche Stadt war Hauptstadt des Byzantinischen Reichs?'
-  answer: Konstantinopel
+  question: '[SCHWER] Welche Verzauberung kann durch Piglin-Tausch erhalten werden?'
+  answer: Seelenläufer
   wrong:
-  - Athen
-  - Rom
-  - Alexandria
+  - Federfall
+  - Behutsamkeit
+  - Schnellladen
 - game: 2
-  question: '[SCHWER] Wie viele Grad hat die Winkelsumme eines Fünfecks?'
-  answer: '540'
+  question: '[SCHWER] Wie viele Werkbank-Slots hat ein Crafter?'
+  answer: '9'
   wrong:
-  - '360'
-  - '450'
-  - '720'
+  - '6'
+  - '8'
+  - '12'
 - game: 2
-  question: '[SCHWER] Welcher Wissenschaftler formulierte die drei Bewegungsgesetze?'
-  answer: Isaac Newton
+  question: '[SCHWER] Wie viele Herzen Schaden kann ein fallender Amboss maximal verursachen?'
+  answer: '20'
   wrong:
-  - Galileo Galilei
-  - Albert Einstein
-  - Johannes Kepler
+  - '10'
+  - '15'
+  - '25'
 - game: 2
-  question: '[SCHWER] Welche Blutgruppe gilt bei Erythrozytentransfusionen als Universalspender?'
-  answer: 0 negativ
+  question: '[SCHWER] Welches Item braucht man zum Herstellen eines Enderkristalls?'
+  answer: Ghast-Träne
   wrong:
-  - AB positiv
-  - A negativ
-  - B negativ
+  - Phantomhaut
+  - Netherstern
+  - Schleimball
+- game: 2
+  question: '[SCHWER] Wie viele Erfahrungspunkte entsprechen Level 30 insgesamt?'
+  answer: '1395'
+  wrong:
+  - '825'
+  - '1200'
+  - '1500'
+- game: 2
+  question: '[SCHWER] Welche Verzauberung ist mit Frostläufer auf Stiefeln unvereinbar?'
+  answer: Wasserläufer
+  wrong:
+  - Federfall
+  - Seelenläufer
+  - Haltbarkeit
+- game: 2
+  question: '[SCHWER] Wie viele Sekunden dauert ein voller Minecraft-Tag in Echtzeit?'
+  answer: '1200'
+  wrong:
+  - '1000'
+  - '1400'
+  - '1800'
+- game: 2
+  question: '[SCHWER] Welcher Effekt erlaubt das Sehen im Dunkeln, nicht durch Wände?'
+  answer: Nachtsicht
+  wrong:
+  - Leuchtkraft
+  - Dunkelheit
+  - Glück
+- game: 2
+  question: '[SCHWER] Welches Item kann man NICHT durch einen normalen Zaubertisch erhalten?'
+  answer: Verzaubertes Buch mit Reparatur
+  wrong:
+  - Verzaubertes Buch mit Effizienz
+  - Verzaubertes Buch mit Schärfe
+  - Verzaubertes Buch mit Haltbarkeit
+- game: 2
+  question: '[SCHWER] Wie viele Eisenblöcke benötigt man für einen Eisengolem?'
+  answer: '4'
+  wrong:
+  - '3'
+  - '5'
+  - '6'
+- game: 2
+  question: '[SCHWER] Welche Beute kann ein Warden nach dem Tod droppen?'
+  answer: Sculk-Katalysator
+  wrong:
+  - Netherstern
+  - Echoscherbe
+  - Drachenei
