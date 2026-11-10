@@ -41,7 +41,9 @@ import java.util.*;
 public final class GameshowPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private static final String[] GAMES = {"Was ist das?!", "Vier Antworten", "Wolfsfell Grand Prix", "Zielwasser", "Schätz mal!", "Streetball 1vs1", "Parkour", "Mystery-Chests", "KitUHC 1vs1"};
     private static final List<String> GAME1_ITEMS = List.of(
-        "Diamant","Goldbarren","Eisenschwert","Apfel","Bogen","Smaragd","Enderperle","Karotte","Spitzhacke","TNT");
+        "Diamant","Goldbarren","Eisenschwert","Apfel","Bogen","Smaragd","Enderperle","Karotte","Spitzhacke","TNT",
+        "Kupferbarren","Feuerkugel","Brot","Keks","Feder","Schleimball","Lapis","Eimer","Schere","Redstone",
+        "Buch","Kohle","Knochen","Schneeball","Ei","Fackel","Ziegelstein","Uhr","Netheritbarren","Kompass");
     private static final int[] RANK_POINTS = {100,80,65,50,40,30,20,10};
     private final LinkedHashMap<String, LinkedHashSet<UUID>> teams = new LinkedHashMap<>();
     private final Map<String, String> teamColors = new HashMap<>();
@@ -114,7 +116,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         // Game 1 images are loaded from resources/game1; no unrelated question entries.
         for(String answer:GAME1_ITEMS)questions.add(new QuizQuestion(1,"Errate das Minecraft-Item auf dem Bildschirm!",answer,new String[0]));
         gameOneScreen.load();
-        Bukkit.getScheduler().runTaskLater(this, () -> { clearLegacyNeonDisplays(); restoreRegionNeon(); refreshAllArmor(); }, 20L);
+        Bukkit.getScheduler().runTaskLater(this, () -> { clearLegacyNeonDisplays(); restoreRegionNeon(); refreshAllArmor(); refreshBuzzerColors(); }, 20L);
         clock = Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         Bukkit.getScheduler().runTaskTimer(this,this::updateDisplays,40L,40L);
         getLogger().info("Wolfsfell Gameshow 0.1 loaded; " + teams.size() + " teams");
@@ -411,6 +413,84 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             }
         }
     }
+    // Place each elected contestant safely on the saved selection spawn at show start.
+    // The existing selection region is used as a fallback when no exact spawn was marked.
+    private void teleportCandidatesToSelection(){
+        for(var entry:selected.entrySet()){
+            Player player=Bukkit.getPlayer(entry.getValue());
+            if(player==null || !player.isOnline())continue;
+            String team=entry.getKey();
+            Location target=locations.get("selection:"+team.toLowerCase(Locale.ROOT));
+            if(target==null)target=locations.get("selection:"+team);
+            Location[] region=cages.get("selection:"+team.toLowerCase(Locale.ROOT));
+            if(target!=null && region!=null && !insideHorizontal(target,region[0],region[1]))target=null;
+            if(target==null && region!=null){
+                World w=region[0].getWorld();
+                if(w!=null && w.equals(region[1].getWorld())){
+                    int x=(region[0].getBlockX()+region[1].getBlockX())/2;
+                    int z=(region[0].getBlockZ()+region[1].getBlockZ())/2;
+                    int low=Math.min(region[0].getBlockY(),region[1].getBlockY());
+                    int high=Math.max(region[0].getBlockY(),region[1].getBlockY());
+                    for(int y=high+2;y>=low;y--){
+                        if(w.getBlockAt(x,y-1,z).getType().isSolid()
+                            && w.getBlockAt(x,y,z).isPassable()
+                            && w.getBlockAt(x,y+1,z).isPassable()){
+                            target=new Location(w,x+.5,y,z+.5);break;
+                        }
+                    }
+                }
+            }
+            if(target==null){getLogger().warning("Kein sicherer Auswahlpunkt für "+team+"; /wg set selection:"+team);continue;}
+            Location safe=target.clone();
+            if(!safe.getBlock().isPassable() || !safe.clone().add(0,1,0).getBlock().isPassable()){
+                getLogger().warning("Auswahlpunkt blockiert: "+team+". /wg set selection:"+team);continue;
+            }
+            safe.setYaw(player.getLocation().getYaw());safe.setPitch(player.getLocation().getPitch());
+            player.teleport(safe);
+            player.sendMessage("§dGameshow §7Du wurdest zu deinem Buzzer-Platz teleportiert!");
+        }
+    }
+
+    // Visual colored caps are non-interactive BlockDisplays: the registered vanilla
+    // stone buttons beneath them keep handling all real buzzer clicks unchanged.
+    private Material buzzerColorMaterial(String team){
+        return switch(teamColors.getOrDefault(team,"PURPLE").toUpperCase(Locale.ROOT)){
+            case "RED" -> Material.RED_CONCRETE;
+            case "BLUE" -> Material.BLUE_CONCRETE;
+            case "GREEN" -> Material.LIME_CONCRETE;
+            case "YELLOW" -> Material.YELLOW_CONCRETE;
+            case "ORANGE" -> Material.ORANGE_CONCRETE;
+            case "PINK" -> Material.PINK_CONCRETE;
+            case "CYAN" -> Material.CYAN_CONCRETE;
+            case "WHITE" -> Material.WHITE_CONCRETE;
+            default -> Material.PURPLE_CONCRETE;
+        };
+    }
+    private void refreshBuzzerColors(){
+        for(World world:Bukkit.getWorlds())for(BlockDisplay display:world.getEntitiesByClass(BlockDisplay.class))
+            if(display.getScoreboardTags().contains("wg_buzzer_color"))display.remove();
+        for(var entry:buzzerBlocks.entrySet()){
+            String[] coords=entry.getValue().split(":");
+            if(coords.length!=4)continue;
+            try{
+                UUID uid=UUID.fromString(coords[0]);
+                World world=Bukkit.getWorld(uid);if(world==null)continue;
+                int x=Integer.parseInt(coords[1]),y=Integer.parseInt(coords[2]),z=Integer.parseInt(coords[3]);
+                Block block=world.getBlockAt(x,y,z);
+                if(!block.getType().name().endsWith("BUTTON"))continue;
+                Material color=buzzerColorMaterial(entry.getKey());
+                world.spawn(block.getLocation().add(.19,.28,.19),BlockDisplay.class,display->{
+                    display.setBlock(color.createBlockData());
+                    display.setTransformation(new org.bukkit.util.Transformation(
+                        new org.joml.Vector3f(0,0,0),new org.joml.AxisAngle4f(),
+                        new org.joml.Vector3f(.62f,.10f,.62f),new org.joml.AxisAngle4f()));
+                    display.addScoreboardTag("wg_buzzer_color");
+                    display.setPersistent(false);
+                });
+            }catch(IllegalArgumentException ignored){}
+        }
+    }
+
     private void returnUnselectedToCages(){
         for(Player player:Bukkit.getOnlinePlayers()){
             String t=team(player.getUniqueId());
@@ -785,7 +865,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             if(args[1].equalsIgnoreCase("color")&&args.length>=4){
                 String t=args[2],c=args[3].toUpperCase(Locale.ROOT);
                 if(!teams.containsKey(t)||!Arrays.asList(palette).contains(c)){say(sender,"Team/Farbe ungültig. Farben: "+String.join(", ",palette));return true;}
-                teamColors.put(t,c);refreshAllArmor();saveState();say(sender,"Teamfarbe "+t+" = "+c);return true;
+                teamColors.put(t,c);refreshAllArmor();refreshBuzzerColors();saveState();say(sender,"Teamfarbe "+t+" = "+c);return true;
             }
             if(args[1].equalsIgnoreCase("create")&&args.length>=3){String t=args[2];if(!t.matches("[a-zA-Z0-9_-]{1,20}")||teams.containsKey(t)||teams.size()>=getConfig().getInt("settings.max-teams",8)){say(sender,"Ungültiger Name, Team vorhanden oder 8 Teams erreicht.");return true;}teams.put(t,new LinkedHashSet<>());teamColors.put(t,palette[(teams.size()-1)%palette.length]);say(sender,"Team "+t+" erstellt.");saveState();return true;}
             if(args[1].equalsIgnoreCase("join")&&args.length>=3){String t=args[2];if(!teams.containsKey(t)){say(sender,"Team nicht vorhanden.");return true;}Player p=args.length>=4?Bukkit.getPlayerExact(args[3]):sender instanceof Player pl?pl:null;if(p==null){say(sender,"Spieler muss online sein.");return true;}if(teams.get(t).size()>=getConfig().getInt("settings.team-size",3)&&!teams.get(t).contains(p.getUniqueId())){say(sender,"Team voll.");return true;}teams.values().forEach(set->set.remove(p.getUniqueId()));teams.get(t).add(p.getUniqueId());say(sender,p.getName()+" -> "+t);equipTeam(p);saveState();return true;}
@@ -856,7 +936,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     if(!(sender instanceof Player p)||args.length<3||!args[1].equalsIgnoreCase("set")||!teams.containsKey(args[2]))break;
                     Block b=p.getTargetBlockExact(8);if(b==null){say(sender,"Schaue auf den Knopf.");return true;}
                     if(!b.getType().name().endsWith("BUTTON")){say(sender,"Bitte einen echten Minecraft-Knopf anvisieren.");return true;}
-                    buzzerBlocks.put(args[2],key(b.getLocation()));saveState();say(sender,"Physischer Buzzer für "+args[2]+" gespeichert.");return true;
+                    buzzerBlocks.put(args[2],key(b.getLocation()));refreshBuzzerColors();saveState();say(sender,"Physischer Buzzer für "+args[2]+" gespeichert.");return true;
                 }
                 case "target" -> {
                     if(!(sender instanceof Player p)||args.length<3||!args[1].equalsIgnoreCase("add")||!teams.containsKey(args[2]))break;
@@ -878,7 +958,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     else {returnUnselectedToCages();studioLocked=true;}
                     saveState();say(sender,"Spielerwahl "+(selectionEnabled?"aktiv":"aus"));return true;}
                 case "game" -> {if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;if(game==g){say(sender,"Spiel "+g+" ist bereits gewählt. Kandidaten bleiben erhalten ("+selected.size()+" registriert).");return true;}running=false;game=g;selected.clear();selectionTicks.clear();buzzed=null;attemptedBuzzers.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]+". Kandidaten für das neue Spiel neu wählen.");saveState();return true;}
-                case "start" -> {if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;if(game==1){say(sender,"Game 1 startet mit "+selected.size()+" registrierten Kandidaten. /wg candidates zeigt die Zuordnung.");if(selected.isEmpty())say(sender,"ACHTUNG: Keine Kandidaten gewählt! Bitte /wg candidate set <Team> <Spieler> nutzen.");}
+                case "start" -> {if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;if(game==1){teleportCandidatesToSelection();say(sender,"Game 1 startet mit "+selected.size()+" registrierten Kandidaten. /wg candidates zeigt die Zuordnung.");if(selected.isEmpty())say(sender,"ACHTUNG: Keine Kandidaten gewählt! Bitte /wg candidate set <Team> <Spieler> nutzen.");}
                     if(game==1||game==2||game==5){game1QuestionActive=false;quizScores.clear();usedQuestions.clear();questionNumber=0;Bukkit.getScheduler().runTaskLater(this,this::nextQuestion,30L);}
                     if(game==3){raceProgress.clear();raceFinishes.clear();}
                     if(game==4){archeryHits.clear();archeryFinishTimes.clear();}
