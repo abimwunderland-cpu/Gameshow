@@ -83,6 +83,10 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private String currentPrompt = "", correctAnswer = "";
     private String[] choices = new String[4];
     private UUID buzzed = null;
+    private final Map<String,String> buzzerBlocks = new HashMap<>();
+    private final Set<UUID> attemptedBuzzers = new HashSet<>();
+    private long buzzDeadline = 0;
+    private final Map<String,Long> archeryFinishTimes = new HashMap<>();
     private long answerDeadline = 0;
     private int questionNumber = 0;
     private final Set<String> usedQuestions = new HashSet<>();
@@ -131,6 +135,9 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
 
         if(!running)return;
+        if(game==1 && buzzed!=null && System.currentTimeMillis()>=buzzDeadline){
+            broadcast("§c5 Sekunden vorbei! §7Buzzer wieder frei.");buzzed=null;buzzDeadline=0;
+        }
         if((game==2 || game==5) && answerDeadline>0 && System.currentTimeMillis()>=answerDeadline) {
             answerDeadline=0; resolveQuestion();
         }
@@ -182,6 +189,22 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(parkourFinishes.size()>=finalists.size())stopParkour();else saveState();
     }
     private void stopParkour(){if(!running || game!=7)return;for(String t:finalists)advantages.merge(t,parkourScores.getOrDefault(t,0),Integer::sum);running=false;broadcast("Parkour beendet! Vorteile wurden gutgeschrieben.");saveState();}
+    private void buzz(Player p){
+        if(!running || game!=1 || buzzed!=null)return;
+        String t=team(p.getUniqueId());
+        if(t==null || !Objects.equals(selected.get(t),p.getUniqueId()) || attemptedBuzzers.contains(p.getUniqueId()))return;
+        attemptedBuzzers.add(p.getUniqueId());buzzed=p.getUniqueId();buzzDeadline=System.currentTimeMillis()+5000L;
+        broadcast("§dBUZZ! §f"+p.getName()+" §7hat 5 Sekunden für eine Chat-Antwort!");
+        p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_BELL,1f,1.4f);
+    }
+    @EventHandler(priority=EventPriority.HIGH) public void onPhysicalBuzzer(PlayerInteractEvent e){
+        if(e.getClickedBlock()==null || (e.getAction()!=Action.RIGHT_CLICK_BLOCK && e.getAction()!=Action.LEFT_CLICK_BLOCK))return;
+        String block=key(e.getClickedBlock().getLocation());
+        if(!buzzerBlocks.containsValue(block))return;
+        e.setCancelled(true);
+        String t=team(e.getPlayer().getUniqueId());
+        if(t!=null && block.equals(buzzerBlocks.get(t)))buzz(e.getPlayer());
+    }
     @EventHandler public void onChest(PlayerInteractEvent e) {
         if(!running || game!=8 || e.getAction()!=Action.RIGHT_CLICK_BLOCK || e.getClickedBlock()==null)return;
         Block b=e.getClickedBlock();String k=key(b.getLocation());if(!mysteryChestValues.containsKey(k))return;
@@ -203,18 +226,18 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(!running || !(game==1 || game==2 || game==5))return;
         Player p=e.getPlayer();String t=team(p.getUniqueId());
         if(t==null || !Objects.equals(selected.get(t),p.getUniqueId()))return;
-        if(game==1 && !p.getUniqueId().equals(buzzed))return;
+        if(game==1 && (!p.getUniqueId().equals(buzzed) || System.currentTimeMillis()>buzzDeadline))return;
         if(game!=1 && answerDeadline==0)return;
         String msg=e.getMessage().trim();e.setCancelled(true);
         Bukkit.getScheduler().runTask(this,()->{
             if(!running)return;
             if(game==1){
                 if(msg.equalsIgnoreCase(correctAnswer)){
-                    int pts=Math.max(1,3-(int)Math.min(2,(System.currentTimeMillis()-startMillis)/15000));
+                    int pts=1;
                     quizScores.merge(t,pts,Integer::sum);individual.merge(p.getUniqueId(),pts,Integer::sum);
                     broadcast("§aRichtig! §f"+p.getName()+" §7("+t+") §a+"+pts+" §7– "+correctAnswer);
-                    buzzed=null;nextQuestion();
-                } else {broadcast("§cFalsch! §7"+t+" hat wieder freigegeben.");buzzed=null;}
+                    buzzed=null;buzzDeadline=0;nextQuestion();
+                } else {broadcast("§cFalsch! §7"+t+" darf diese Runde nicht mehr buzzern.");buzzed=null;buzzDeadline=0;}
             }else if(game==2){
                 String v=msg.toUpperCase(Locale.ROOT);
                 if(!List.of("A","B","C","D").contains(v)){say(p,"Antworte mit A, B, C oder D.");return;}
@@ -234,7 +257,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         e.getHitBlock().getWorld().spawnParticle(Particle.HAPPY_VILLAGER,e.getHitBlock().getLocation().add(.5,.5,.5),10,.25,.25,.25);
         p.sendMessage("§aTreffer! §7"+archeryHits.get(t)+"/10");
         p.playSound(p.getLocation(),"wolfsfell.hit",0.8f,1f);
-        if(archeryHits.get(t)>=10)broadcast("§d"+t+" §7hat alle Zielscheiben getroffen!");
+        if(archeryHits.get(t)>=10){archeryFinishTimes.putIfAbsent(t,System.currentTimeMillis());broadcast("§d"+t+" §7hat alle Zielscheiben getroffen!");}
     }
     private void loadQuestions() {
         File f=new File(getDataFolder(),"questions.yml");if(!f.exists())saveResource("questions.yml",false);
@@ -248,16 +271,17 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         getLogger().info("Loaded "+questions.size()+" quiz entries");
     }
     private void nextQuestion(){
+        if(questionNumber>=10){running=false;answerDeadline=0;broadcast("§d10 Runden beendet! §7Mit /wg finishround die Punkte speichern.");return;}
         List<QuizQuestion> pool=questions.stream().filter(q->q.game()==game&&!usedQuestions.contains(q.prompt())).toList();
         if(pool.isEmpty()){broadcast("§dFragenpool für Spiel "+game+" aufgebraucht.");running=false;return;}
         QuizQuestion q=pool.get(random.nextInt(pool.size()));usedQuestions.add(q.prompt());questionNumber++;
-        currentPrompt=q.prompt();correctAnswer=q.answer();responses.clear();estimates.clear();buzzed=null;
+        currentPrompt=q.prompt();correctAnswer=q.answer();responses.clear();estimates.clear();buzzed=null;buzzDeadline=0;attemptedBuzzers.clear();
         if(game==2){List<String> opts=new ArrayList<>();opts.add(q.answer());opts.addAll(Arrays.asList(q.wrong()));Collections.shuffle(opts);choices=opts.toArray(String[]::new);}
-        answerDeadline=game==1?0:System.currentTimeMillis()+getConfig().getInt("settings.quiz-answer-seconds",12)*1000L;
+        answerDeadline=game==1?0:System.currentTimeMillis()+7000L;
         broadcast("§dFrage "+questionNumber+": §f"+currentPrompt);
         if(game==2)for(int i=0;i<4;i++)broadcast("§7"+(char)('A'+i)+") §f"+choices[i]);
         if(game==5)broadcast("§7Schätzung im Chat eingeben!");
-        if(game==1)broadcast("§7Mit /wg buzz buzzern, danach im Chat antworten!");
+        if(game==1)broadcast("§7Drücke deinen Team-Buzzer! Danach 5 Sekunden zum Antworten.");
     }
     private void resolveQuestion(){
         if(game==2){
@@ -269,11 +293,11 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             }
         }else if(game==5){
             int correct;try{correct=Integer.parseInt(correctAnswer);}catch(NumberFormatException ex){broadcast("Ungültige Schätzfrage.");return;}
-            List<Map.Entry<String,Integer>> order=new ArrayList<>(estimates.entrySet());
-            order.sort(Comparator.comparingLong(x->Math.abs((long)x.getValue()-correct)));
+            long best=estimates.values().stream().mapToLong(v->Math.abs((long)v-correct)).min().orElse(Long.MAX_VALUE);
             broadcast("§aRichtige Antwort: §f"+correct);
-            for(int i=0;i<order.size();i++){
-                var entry=order.get(i);int pts=Math.max(0,3-i);
+            for(var entry:estimates.entrySet()){
+                long diff=Math.abs((long)entry.getValue()-correct);
+                int pts=diff==best?(diff==0?2:1):0;
                 broadcast("§7"+entry.getKey()+": §f"+entry.getValue()+(pts>0?" §a+"+pts:""));
                 if(pts>0){quizScores.merge(entry.getKey(),pts,Integer::sum);UUID id=selected.get(entry.getKey());if(id!=null)individual.merge(id,pts,Integer::sum);}
             }
@@ -334,6 +358,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         ConfigurationSection chest=y.getConfigurationSection("chests");if(chest!=null)for(String k:chest.getKeys(false))mysteryChestValues.put(k,chest.getInt(k));
         openedChests.addAll(y.getStringList("opened-chests"));
         ConfigurationSection ids=y.getConfigurationSection("individual");if(ids!=null)for(String k:ids.getKeys(false))try{individual.put(UUID.fromString(k),ids.getInt(k));}catch(Exception ignored){}
+        ConfigurationSection buz=y.getConfigurationSection("buzzers");if(buz!=null)for(String t:buz.getKeys(false))buzzerBlocks.put(t,buz.getString(t,""));
         ConfigurationSection target=y.getConfigurationSection("targets");if(target!=null)for(String t:target.getKeys(false))archeryTargets.put(t,new HashSet<>(target.getStringList(t)));
         ConfigurationSection cp=y.getConfigurationSection("race-checkpoints");if(cp!=null)for(String k:cp.getKeys(false)){List<Location> ls=new ArrayList<>();for(Object obj:cp.getList(k,List.of()))if(obj instanceof Location l)ls.add(l);raceCheckpoints.put(k,ls);}
         ConfigurationSection buy=y.getConfigurationSection("purchases");if(buy!=null)for(String t:buy.getKeys(false)){ConfigurationSection sec=buy.getConfigurationSection(t);if(sec!=null)for(String k:sec.getKeys(false))purchases.computeIfAbsent(t,x->new HashMap<>()).put(k,sec.getInt(k));}
@@ -355,6 +380,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         for(var e:mysteryChestValues.entrySet())y.set("chests."+e.getKey(),e.getValue());
         y.set("opened-chests",new ArrayList<>(openedChests));
         for(var e:individual.entrySet())y.set("individual."+e.getKey(),e.getValue());
+        for(var e:buzzerBlocks.entrySet())y.set("buzzers."+e.getKey(),e.getValue());
         for(var e:archeryTargets.entrySet())y.set("targets."+e.getKey(),new ArrayList<>(e.getValue()));
         for(var e:raceCheckpoints.entrySet())y.set("race-checkpoints."+e.getKey(),e.getValue());
         for(var e:purchases.entrySet())for(var item:e.getValue().entrySet())y.set("purchases."+e.getKey()+"."+item.getKey(),item.getValue());
@@ -481,8 +507,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         neonRegionDisplays.add(d.getUniqueId());
     }
     private void restoreRegionNeon() {for(String team:neonRegions.keySet())renderNeonRegion(team);}
-    // Trace only exposed top edges of solid blocks, merge adjacent runs.
-    // No per-block outlines and no large translucent display surfaces.
+    // Draw only the silhouette of the highest exposed solid surface in each column.
+    // Merge collinear edges, avoid duplicate internal seams and keep all strips flush.
     private void renderNeonRegion(String id) {
         Location[] area=neonRegions.get(id);
         if(area==null||!area[0].getWorld().equals(area[1].getWorld()))return;
@@ -497,52 +523,55 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(x1-x0>48||z1-z0>48||y1-y0>16)return;
         String team=id.startsWith("selection:")?id.substring("selection:".length()):id;
         Material m=neonMaterial(team);
-        final float t=.045f;
-        int strips=0;
-        // Each visible top edge is merged into a single straight strip.
-        // Only edges bordering air are drawn, so internal seams are omitted.
-        for(int y=y0;y<=y1&&strips<160;y++) {
-            for(int z=z0;z<=z1&&strips<160;z++) {
-                for(int side=-1;side<=1;side+=2) {
-                    int start=-1;
-                    for(int x=x0;x<=x1+1;x++) {
-                        boolean active=x<=x1 && exposedNeonEdge(w,x,y,z,0,side);
-                        if(active&&start<0)start=x;
-                        if(!active&&start>=0) {
-                            addNeonStrip(w,m,id,start,y+1.006,z+(side==1?1:0)-t/2,(float)(x-start),t,t);
-                            strips++;start=-1;
-                        }
-                    }
-                }
-            }
-            for(int x=x0;x<=x1&&strips<160;x++) {
-                for(int side=-1;side<=1;side+=2) {
-                    int start=-1;
-                    for(int z=z0;z<=z1+1;z++) {
-                        boolean active=z<=z1 && exposedNeonEdge(w,x,y,z,1,side);
-                        if(active&&start<0)start=z;
-                        if(!active&&start>=0) {
-                            addNeonStrip(w,m,id,x+(side==1?1:0)-t/2,y+1.006,start,t,t,(float)(z-start));
-                            strips++;start=-1;
-                        }
-                    }
+        final float t=.032f;
+        int width=x1-x0+1,depth=z1-z0+1;
+        int[][] heights=new int[width][depth];
+        for(int ix=0;ix<width;ix++)for(int iz=0;iz<depth;iz++){
+            heights[ix][iz]=Integer.MIN_VALUE;
+            for(int y=y1;y>=y0;y--){
+                Block b=w.getBlockAt(x0+ix,y,z0+iz);
+                if(b.getType().isSolid()&&w.getBlockAt(x0+ix,y+1,z0+iz).isEmpty()){
+                    heights[ix][iz]=y;break;
                 }
             }
         }
-        // Light is independent of the display glow. Never replace solid blocks.
-        for(int x=x0;x<=x1;x+=4)for(int z=z0;z<=z1;z+=4) {
-            for(int y=y1+1;y>=y0;y--) {
-                if(w.getBlockAt(x,y,z).getType()==Material.AIR) {
-                    placeNeonLight(w,x,y,z);break;
-                }
+        int strips=0;
+        // Edges parallel to X: neighboring column must be lower or empty.
+        for(int iz=0;iz<depth&&strips<160;iz++)for(int side=-1;side<=1&&strips<160;side+=2){
+            int ix=0;
+            while(ix<width&&strips<160){
+                int y=heights[ix][iz];
+                if(y==Integer.MIN_VALUE||!edgeExposed(heights,ix,iz,0,side,y)) {ix++;continue;}
+                int start=ix++;
+                while(ix<width&&heights[ix][iz]==y&&edgeExposed(heights,ix,iz,0,side,y))ix++;
+                double z=z0+iz+(side==1?1:0)-t/2;
+                addNeonStrip(w,m,id,x0+start,y+1.006,z,(float)(ix-start),t,t);
+                strips++;
+            }
+        }
+        // Edges parallel to Z.
+        for(int ix=0;ix<width&&strips<160;ix++)for(int side=-1;side<=1&&strips<160;side+=2){
+            int iz=0;
+            while(iz<depth&&strips<160){
+                int y=heights[ix][iz];
+                if(y==Integer.MIN_VALUE||!edgeExposed(heights,ix,iz,1,side,y)){iz++;continue;}
+                int start=iz++;
+                while(iz<depth&&heights[ix][iz]==y&&edgeExposed(heights,ix,iz,1,side,y))iz++;
+                double x=x0+ix+(side==1?1:0)-t/2;
+                addNeonStrip(w,m,id,x,y+1.006,z0+start,t,t,(float)(iz-start));
+                strips++;
+            }
+        }
+        // Keep existing lighting, without replacing structural blocks.
+        for(int x=x0;x<=x1;x+=4)for(int z=z0;z<=z1;z+=4){
+            for(int y=y1+1;y>=y0;y--){
+                if(w.getBlockAt(x,y,z).getType()==Material.AIR){placeNeonLight(w,x,y,z);break;}
             }
         }
     }
-    private boolean exposedNeonEdge(World w,int x,int y,int z,int axis,int side) {
-        Block b=w.getBlockAt(x,y,z);
-        if(!b.getType().isSolid()||!w.getBlockAt(x,y+1,z).isEmpty())return false;
-        Block neighbor=axis==0?w.getBlockAt(x,y,z+side):w.getBlockAt(x+side,y,z);
-        return neighbor.isEmpty()||!neighbor.getType().isSolid();
+    private boolean edgeExposed(int[][] heights,int x,int z,int axis,int side,int y){
+        int nx=x+(axis==1?side:0),nz=z+(axis==0?side:0);
+        return nx<0||nz<0||nx>=heights.length||nz>=heights[0].length||heights[nx][nz]<y;
     }
     private void placeNeonLight(World world,int x,int y,int z){
         Block b=world.getBlockAt(x,y,z);
@@ -589,7 +618,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             say(sender,"/wg team create|delete|color|join|leave|list | /wg wand region | /wg wand neon <Team> | /wg region save cage:<Team>");
             say(sender,"/wg studio lock|unlock | /wg region save selection:<Team> | /wg select on/off");
             say(sender,"/wg neon save <Team> | /wg neon selection <Team> | /wg neon clear <Team> | /wg neon cleanup");
-            say(sender,"/wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
+            say(sender,"/wg buzzer set <Team> (Knopf ansehen) | /wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
             say(sender,"/wg raw <Team> <Spiel 1-5> <Wert> | /wg rank | /wg qualify | /wg finalist <A> <B>");
             say(sender,"/wg basket <Team> <0-6> | /wg parkour finish | /wg chest add|clear|shuffle|stop");
             say(sender,"/wg points <Team> | /wg points add <Team> <Zahl> | /wg spend <Team> <Kosten> <Notiz>");return true;
@@ -663,7 +692,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(cmd.equals("buzz")){
             if(!(sender instanceof Player p) || !running || game!=1)return true;
             String t=team(p.getUniqueId());if(t==null||!Objects.equals(selected.get(t),p.getUniqueId()))return true;
-            if(buzzed==null){buzzed=p.getUniqueId();broadcast("§dBUZZ! §f"+p.getName()+" §7darf antworten!");p.playSound(p.getLocation(),"wolfsfell.buzzer",1f,1f);}return true;
+            say(sender,"Bitte den physischen Team-Buzzer anklicken, nicht /wg buzz verwenden.");return true;
         }
         if(cmd.equals("shop")){
             if(sender instanceof Player p)openShop(p);return true;
@@ -679,6 +708,12 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                         if(game==4)for(String t:teams.keySet())raw.computeIfAbsent(t,k->new HashMap<>()).put(game,archeryHits.getOrDefault(t,0));
                         running=false;rankRound(sender,game);broadcast("§dSpiel "+game+" abgeschlossen.");return true;
                     }break;
+                }
+                case "buzzer" -> {
+                    if(!(sender instanceof Player p)||args.length<3||!args[1].equalsIgnoreCase("set")||!teams.containsKey(args[2]))break;
+                    Block b=p.getTargetBlockExact(8);if(b==null){say(sender,"Schaue auf den Knopf.");return true;}
+                    if(!b.getType().name().endsWith("BUTTON")){say(sender,"Bitte einen echten Minecraft-Knopf anvisieren.");return true;}
+                    buzzerBlocks.put(args[2],key(b.getLocation()));saveState();say(sender,"Physischer Buzzer für "+args[2]+" gespeichert.");return true;
                 }
                 case "target" -> {
                     if(!(sender instanceof Player p)||args.length<3||!args[1].equalsIgnoreCase("add")||!teams.containsKey(args[2]))break;
@@ -698,7 +733,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 case "start" -> {if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;
                     if(game==1||game==2||game==5){quizScores.clear();usedQuestions.clear();questionNumber=0;Bukkit.getScheduler().runTaskLater(this,this::nextQuestion,30L);}
                     if(game==3){raceProgress.clear();raceFinishes.clear();}
-                    if(game==4){archeryHits.clear();}
+                    if(game==4){archeryHits.clear();archeryFinishTimes.clear();}
                     broadcast("§dSTART: "+GAMES[game-1]);saveState();return true;}
                 case "stop" -> {if(game==7&&running){stopParkour();return true;}if(game==8&&running){finishMystery();return true;}running=false;broadcast("Spiel gestoppt.");saveState();return true;}
                 case "raw" -> {if(args.length<4)break;String t=args[1];int n=Integer.parseInt(args[2]),v=Integer.parseInt(args[3]);if(!teams.containsKey(t)||n<1||n>5)break;raw.computeIfAbsent(t,k->new HashMap<>()).put(n,v);say(sender,"Rohwertung "+t+" Spiel "+n+" = "+v);rankRound(sender,n);return true;}
@@ -743,7 +778,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         say(p,"Gekauft: "+item+" für "+cost+" Punkte. Rest: "+advantages.get(t));p.playSound(p.getLocation(),"wolfsfell.purchase",1f,1f);saveState();
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
-        if(args.length==1)return Arrays.stream(new String[]{"help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzz","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==1)return Arrays.stream(new String[]{"help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         if(args.length==2&&args[0].equalsIgnoreCase("target"))return List.of("add");
         if(args.length==2&&args[0].equalsIgnoreCase("checkpoint"))return List.of("add","clear");
         if(args.length==2&&args[0].equalsIgnoreCase("team"))return List.of("create","join","leave","delete","color","list");
