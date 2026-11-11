@@ -62,11 +62,12 @@ final class GameFourTarget implements Listener {
         teamLanes.clear();teamLanes.putAll(lanes);msg(sender,"Kandidaten auf Bahnen 1-8 und Zuschauer in die Zuschauerbox teleportiert.");
     }
     private final Map<String,Integer> teamLanes=new HashMap<>();
-    void start(CommandSender sender){if(!staged){msg(sender,"Erst /wg tp game 4 verwenden.");return;}if(active||countdown!=null){msg(sender,"Spiel läuft bereits.");return;}
-        for(String team:candidates.keySet())if(targets.getOrDefault(lane(teamLanes.getOrDefault(team,-1)),Set.of()).size()!=10){msg(sender,"Team "+team+" hat "+targets.getOrDefault(lane(teamLanes.getOrDefault(team,-1)),Set.of()).size()+"/10 Ziele. Bitte vervollständigen.");return;}
+    boolean start(CommandSender sender){if(!staged){msg(sender,"Erst /wg tp game 4 verwenden.");return false;}if(active||countdown!=null){msg(sender,"Spiel läuft bereits.");return false;}
+        for(String team:candidates.keySet())if(targets.getOrDefault(lane(teamLanes.getOrDefault(team,-1)),Set.of()).size()!=10){msg(sender,"Team "+team+" hat "+targets.getOrDefault(lane(teamLanes.getOrDefault(team,-1)),Set.of()).size()+"/10 Ziele. Bitte vervollständigen.");return false;}
         restoreTargets();remaining.clear();for(var e:candidates.entrySet())remaining.put(e.getKey(),new HashSet<>(targets.get(lane(teamLanes.get(e.getKey())))));
         for(UUID id:candidates.values()){Player p=Bukkit.getPlayer(id);if(p!=null){p.getInventory().addItem(new ItemStack(Material.BOW));p.getInventory().addItem(new ItemStack(Material.ARROW,64));}}
         countdown=Bukkit.getScheduler().runTaskTimer(plugin,new Runnable(){int sec=5;public void run(){if(sec>0){for(UUID id:candidates.values()){Player p=Bukkit.getPlayer(id);if(p!=null)p.sendTitle("§e"+sec,"§7Bogen bereithalten!",0,22,0);}sec--;return;}countdown.cancel();countdown=null;active=true;for(UUID id:candidates.values()){Player p=Bukkit.getPlayer(id);if(p!=null)p.sendTitle("§aLOS!","§fTriff deine 10 Ziele!",0,35,10);}Bukkit.broadcastMessage("§d[Zielwasser] §aLOS! §f10 Ziele pro Team.");}},0L,20L);
+        msg(sender,"Countdown gestartet: 5 Sekunden. Kandidaten haben Bogen und Pfeile erhalten.");return true;
     }
     private double side(Location l){return (lineB.getX()-lineA.getX())*(l.getZ()-lineA.getZ())-(lineB.getZ()-lineA.getZ())*(l.getX()-lineA.getX());}
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void movement(PlayerMoveEvent e){
