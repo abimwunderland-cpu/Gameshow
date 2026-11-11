@@ -29,6 +29,8 @@ final class GameThreeRace implements Listener {
     private final Map<UUID,Long> lastCross=new HashMap<>();
     private final Map<UUID,Location> lastPosition=new HashMap<>();
     private final Map<UUID,UUID> boats=new HashMap<>();
+    private final Map<UUID,UUID> hullDisplays=new HashMap<>();
+    private BukkitTask hullUpdater;
     private final Set<UUID> spectators=new HashSet<>();
     private Location driver,spectator,finishA,finishB,tribuneA,tribuneB;
     private int mode=0, nextStart=1;
@@ -47,8 +49,31 @@ final class GameThreeRace implements Listener {
     private void undo(Player p){switch(mode){case 0->{nextStart=(nextStart+6)%8+1;starts.remove(nextStart);}case 1->driver=null;case 2->spectator=null;case 3->{if(tribuneB!=null)tribuneB=null;else tribuneA=null;}case 4->{if(finishB!=null)finishB=null;else finishA=null;}}save();msg(p,"Letzte Markierung im aktuellen Modus geloescht.");}
     boolean ready(org.bukkit.command.CommandSender s){if(starts.size()!=8||driver==null||spectator==null||finishA==null||finishB==null||tribuneA==null||tribuneB==null){msg(s,"Setup unvollstaendig: 8 Bootsplaetze, Fahrer, Tribuene, 2 Tribuenen-Ecken und 2 Zielpunkte markieren.");return false;}if(!finishA.getWorld().equals(finishB.getWorld())){msg(s,"Zielpunkte muessen in derselben Welt sein.");return false;}return true;}
     void teleport(org.bukkit.command.CommandSender sender,Map<String,UUID> selected,Map<UUID,String> teamLookup,Map<String,String> colors){if(!ready(sender))return;stop();assigned.clear();int n=0;for(var e:selected.entrySet()){Player p=Bukkit.getPlayer(e.getValue());if(p==null)continue;if(n>=8)break;assigned.put(e.getKey(),p.getUniqueId());n++;}if(assigned.isEmpty()){msg(sender,"Keine Kandidaten gewaehlt. /wg candidate set <Team> <Spieler>");return;}for(Player p:Bukkit.getOnlinePlayers()){if(assigned.containsValue(p.getUniqueId())){p.teleport(driver);p.sendMessage("§dDein Boot steht an der Startlinie. Steige in das Boot deines Teams!");}else{p.teleport(spectator);spectators.add(p.getUniqueId());}}spawnBoats(colors);staged=true;msg(sender,assigned.size()+" Fahrer zur Strecke, Zuschauer zur Tribuene teleportiert. /wg game3 start");}
-    private void spawnBoats(Map<String,String> colors){removeBoats();int n=0;for(String team:assigned.keySet()){Location at=starts.get(++n);if(at==null)continue;Boat boat=at.getWorld().spawn(at,Boat.class,b->{b.setInvulnerable(true);b.setPersistent(true);b.setCustomName("§d"+team);b.setCustomNameVisible(true);b.getPersistentDataContainer().set(boatKey,PersistentDataType.STRING,team);b.addScoreboardTag("wg_game3_boat");});boat.setGlowing(true);String col=colors.getOrDefault(team,"PURPLE").toUpperCase(Locale.ROOT);org.bukkit.scoreboard.Scoreboard sb=Bukkit.getScoreboardManager().getMainScoreboard();String key="wgboat"+n;org.bukkit.scoreboard.Team score=sb.getTeam(key);if(score==null)score=sb.registerNewTeam(key);try{score.setColor(ChatColor.valueOf(col));}catch(Exception ignored){score.setColor(ChatColor.LIGHT_PURPLE);}score.addEntry(boat.getUniqueId().toString());boats.put(assigned.get(team),boat.getUniqueId());}}
-    private void removeBoats(){for(World w:Bukkit.getWorlds())for(Boat b:w.getEntitiesByClass(Boat.class))if(b.getScoreboardTags().contains("wg_game3_boat"))b.remove();boats.clear();}
+    private void spawnBoats(Map<String,String> colors){removeBoats();int n=0;for(String team:assigned.keySet()){Location at=starts.get(++n);if(at==null)continue;Boat boat=at.getWorld().spawn(at,Boat.class,b->{b.setInvulnerable(true);b.setPersistent(true);b.setCustomName("§d"+team);b.setCustomNameVisible(true);b.getPersistentDataContainer().set(boatKey,PersistentDataType.STRING,team);b.addScoreboardTag("wg_game3_boat");});boat.setGlowing(true);String col=colors.getOrDefault(team,"PURPLE").toUpperCase(Locale.ROOT);org.bukkit.scoreboard.Scoreboard sb=Bukkit.getScoreboardManager().getMainScoreboard();String key="wgboat"+n;org.bukkit.scoreboard.Team score=sb.getTeam(key);if(score==null)score=sb.registerNewTeam(key);try{score.setColor(ChatColor.valueOf(col));}catch(Exception ignored){score.setColor(ChatColor.LIGHT_PURPLE);}score.addEntry(boat.getUniqueId().toString());boats.put(assigned.get(team),boat.getUniqueId());spawnColoredHull(boat,col);}
+        startHullUpdater();}
+    private void spawnColoredHull(Boat boat,String color){
+        String c=switch(color){case "RED", "DARK_RED"->"red";case "BLUE", "DARK_BLUE"->"blue";case "GREEN", "DARK_GREEN"->"green";case "YELLOW", "GOLD"->"yellow";case "ORANGE"->"orange";case "LIGHT_PURPLE", "PINK"->"pink";case "AQUA", "DARK_AQUA", "CYAN"->"cyan";case "WHITE"->"white";default->"purple";};
+        ItemStack item=new ItemStack(Material.PAPER);
+        ItemMeta meta=item.getItemMeta();meta.setItemModel(new NamespacedKey("wolfsfell","race_boat_"+c));item.setItemMeta(meta);
+        Location loc=boat.getLocation().clone().add(0,0.28,0);
+        ItemDisplay display=boat.getWorld().spawn(loc,ItemDisplay.class,d->{d.setItemStack(item);d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);d.setPersistent(false);d.addScoreboardTag("wg_game3_hull");d.setInterpolationDuration(2);d.setTeleportDuration(1);});
+        hullDisplays.put(boat.getUniqueId(),display.getUniqueId());
+    }
+    private void startHullUpdater(){
+        if(hullUpdater!=null)hullUpdater.cancel();
+        hullUpdater=Bukkit.getScheduler().runTaskTimer(plugin,()->{
+            for(var e:hullDisplays.entrySet()){
+                Entity be=Bukkit.getEntity(e.getKey()), de=Bukkit.getEntity(e.getValue());
+                if(!(be instanceof Boat boat)||!(de instanceof ItemDisplay display))continue;
+                Location at=boat.getLocation().clone().add(0,0.28,0);
+                display.teleport(at);
+            }
+        },1L,1L);
+    }
+    private void removeBoats(){
+        if(hullUpdater!=null){hullUpdater.cancel();hullUpdater=null;}
+        for(World w:Bukkit.getWorlds())for(ItemDisplay d:w.getEntitiesByClass(ItemDisplay.class))if(d.getScoreboardTags().contains("wg_game3_hull"))d.remove();
+        hullDisplays.clear();for(World w:Bukkit.getWorlds())for(Boat b:w.getEntitiesByClass(Boat.class))if(b.getScoreboardTags().contains("wg_game3_boat"))b.remove();boats.clear();}
     void start(org.bukkit.command.CommandSender s){if(!staged||assigned.isEmpty()){msg(s,"Erst /wg tp game 3 ausfuehren.");return;}if(countdown!=null||racing){msg(s,"Rennen laeuft bereits.");return;}for(UUID id:assigned.values()){Player p=Bukkit.getPlayer(id);if(p==null||!(p.getVehicle() instanceof Boat b)||!b.getScoreboardTags().contains("wg_game3_boat")||!Objects.equals(boats.get(id),b.getUniqueId())){msg(s,"Alle Fahrer muessen in ihrem eigenen Teamboot sitzen: "+(p==null?id:p.getName()));return;}}laps.clear();finishes.clear();armed.clear();lastCross.clear();lastPosition.clear();final int[] secs={5};countdown=Bukkit.getScheduler().runTaskTimer(plugin,()->{if(secs[0]>0){all("§eSTART IN "+secs[0]+"...");secs[0]--;return;}countdown.cancel();countdown=null;racing=true;startMillis=System.currentTimeMillis();all("§a§lGO! §f2 Runden!");},0L,20L);}
     void stop(){if(countdown!=null){countdown.cancel();countdown=null;}racing=false;staged=false;spectators.clear();assigned.clear();removeBoats();}
     private boolean inside(Location p,Location a,Location b){return a!=null&&b!=null&&p.getWorld().equals(a.getWorld())&&p.getWorld().equals(b.getWorld())&&p.getX()>=Math.min(a.getX(),b.getX())-0.5&&p.getX()<=Math.max(a.getX(),b.getX())+0.5&&p.getY()>=Math.min(a.getY(),b.getY())-1&&p.getY()<=Math.max(a.getY(),b.getY())+2&&p.getZ()>=Math.min(a.getZ(),b.getZ())-0.5&&p.getZ()<=Math.max(a.getZ(),b.getZ())+0.5;}
