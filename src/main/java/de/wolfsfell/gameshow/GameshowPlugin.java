@@ -42,7 +42,7 @@ import java.util.*;
 
 /** Core tournament engine. Integrations with external minigame plugins are intentionally separate. */
 public final class GameshowPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
-    private static final String[] GAMES = {"Was ist das?!", "Vier Antworten", "Wolfsfell Grand Prix", "Zielwasser", "Schätz mal!", "Streetball 1vs1", "Parkour", "Mystery-Chests", "KitUHC 1vs1"};
+    private static final String[] GAMES = {"Was ist das?!", "Vier Antworten", "Wolfsfell Grand Prix", "Zielwasser", "Schätz mal!", "Wortduell", "Parkour", "Mystery-Chests", "KitUHC 1vs1"};
     private static final List<String> GAME1_ITEMS = List.of(
         "Diamant","Goldbarren","Eisenschwert","Apfel","Bogen","Smaragd","Enderperle","Karotte","Spitzhacke","TNT",
         "Kupferbarren","Feuerkugel","Brot","Keks","Feder","Schleimball","Lapis","Eimer","Schere","Redstone",
@@ -75,6 +75,17 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private final Map<String,Integer> mysteryChestValues = new HashMap<>();
     private final Set<String> openedChests = new HashSet<>();
     private List<String> finalists = new ArrayList<>();
+    private boolean finaleStarted = false, manualFinalists = false;
+    private final Set<UUID> persistentTeamChat = new HashSet<>();
+    private final Set<String> leggingsRewards = new HashSet<>();
+    private final List<WordQuestion> wordQuestions = new ArrayList<>();
+    private final List<WordQuestion> wordSequence = new ArrayList<>();
+    private final Map<String,String> wordAnswers = new HashMap<>();
+    private final Map<String,Set<String>> wordUsed = new HashMap<>();
+    private boolean wordAccepting = false;
+    private int wordRound = 0, wordGeneration = 0;
+    private record WordQuestion(String prompt,Set<String> answers) {}
+
     private final Map<UUID,Integer> individual = new HashMap<>();
     private final Map<String,Integer> quizScores = new HashMap<>();
     private final Map<String,String> responses = new HashMap<>();
@@ -130,8 +141,11 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         Bukkit.getPluginManager().registerEvents(this,this);
         Objects.requireNonNull(getCommand("wg")).setExecutor(this);
         Objects.requireNonNull(getCommand("wg")).setTabCompleter(this);
+        Objects.requireNonNull(getCommand("t")).setExecutor(this);
+        Objects.requireNonNull(getCommand("tc")).setExecutor(this);
         loadQuestions();
         loadEstimateQuestions();
+        loadWordQuestions();
         // Game 1 images are loaded from resources/game1; no unrelated question entries.
         for(String answer:GAME1_ITEMS)questions.add(new QuizQuestion(1,"Errate das Minecraft-Item auf dem Bildschirm!",answer,new String[0]));
         Bukkit.getScheduler().runTaskLater(this, gameOneScreen::load, 40L);
@@ -146,7 +160,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         for(var entry:scores.entrySet())raw.computeIfAbsent(entry.getKey(),k->new HashMap<>()).put(3,entry.getValue());
         running=false;rankRound(Bukkit.getConsoleSender(),3);broadcast("§dSpiel 3 automatisch abgeschlossen.");saveState();
     }
-    @Override public void onDisable() { restoreGame2Inventories();if(gameThree!=null)gameThree.stop();if(gameFour!=null)gameFour.stop();if(clock!=null)clock.cancel(); for(List<UUID> ids:neonEdges.values())for(UUID id:ids){org.bukkit.entity.Entity e=Bukkit.getEntity(id);if(e!=null)e.remove();} saveState(); }
+    @Override public void onDisable() {wordGeneration++;wordAccepting=false; restoreGame2Inventories();if(gameThree!=null)gameThree.stop();if(gameFour!=null)gameFour.stop();if(clock!=null)clock.cancel(); for(List<UUID> ids:neonEdges.values())for(UUID id:ids){org.bukkit.entity.Entity e=Bukkit.getEntity(id);if(e!=null)e.remove();} saveState(); }
     private String key(Location l) { return l.getWorld().getUID()+":"+l.getBlockX()+":"+l.getBlockY()+":"+l.getBlockZ(); }
     private String team(UUID u) { for(var e:teams.entrySet()) if(e.getValue().contains(u))return e.getKey(); return null; }
     private void say(CommandSender s,String msg) { s.sendMessage(ChatColor.LIGHT_PURPLE+"[Gameshow] "+ChatColor.WHITE+msg); }
@@ -161,8 +175,9 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 String t=team(p.getUniqueId());
                 boolean allowed=t!=null && (game<=5 || finalTeam(t));
                 boolean near=allowed && mark!=null && p.getWorld().equals(mark.getWorld()) && p.getLocation().distanceSquared(mark)<=Math.pow(getConfig().getDouble("settings.selection-radius",1.5),2);
-                Location[] zone=cages.get("selection:"+t.toLowerCase(Locale.ROOT));if(zone!=null)near=allowed&&inside(p.getLocation(),zone[0],zone[1]);
+                Location[] zone=t==null?null:cages.get("selection:"+t.toLowerCase(Locale.ROOT));if(zone!=null)near=allowed&&inside(p.getLocation(),zone[0],zone[1]);
                 if(!near){selectionTicks.remove(p.getUniqueId());continue;}
+                if(finaleStarted && !finalists.contains(t)){selectionTicks.remove(p.getUniqueId());continue;}
                 if(selected.containsKey(t)){selectionTicks.remove(p.getUniqueId());continue;}
                 int ticks=selectionTicks.merge(p.getUniqueId(),1,Integer::sum);
                 if(ticks>=getConfig().getInt("settings.selection-hold-ticks",20) && !selected.containsKey(t)) {
@@ -289,6 +304,14 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     @EventHandler public void onJoin(PlayerJoinEvent e) { Bukkit.getScheduler().runTaskLater(this,()->{restoreGame2Inventory(e.getPlayer());updateDisplays();},20); }
     @EventHandler public void onQuit(PlayerQuitEvent e) { if(e.getPlayer().getUniqueId().equals(buzzed))buzzed=null; }
     @EventHandler public void onChat(AsyncPlayerChatEvent e) {
+        if(e.isCancelled())return;
+        if(game==6 && running && finaleStarted){
+            Player participant=e.getPlayer();String wordTeam=team(participant.getUniqueId());
+            if(wordTeam!=null && finalists.contains(wordTeam) && Objects.equals(selected.get(wordTeam),participant.getUniqueId())){
+                e.setCancelled(true);String typed=e.getMessage();
+                Bukkit.getScheduler().runTask(this,()->{if(!wordAccepting){say(participant,"§eNoch Lesezeit! Warte auf den Startton.");return;}submitWord(participant,typed);});return;
+            }
+        }
         if(!running || !(game==1 || game==5))return;
         Player p=e.getPlayer();String t=team(p.getUniqueId());
         if(t==null)return;
@@ -699,7 +722,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     private void loadState(){
         if(!stateFile.exists())return;YamlConfiguration y=YamlConfiguration.loadConfiguration(stateFile);
-        game=y.getInt("game",0);running=false;selectionEnabled=false;studioLocked=y.getBoolean("studio-locked",false);finalists=y.getStringList("finalists");
+        game=y.getInt("game",0);running=false;selectionEnabled=false;studioLocked=y.getBoolean("studio-locked",false);finalists=y.getStringList("finalists");finaleStarted=y.getBoolean("finale-started",false);manualFinalists=y.getBoolean("manual-finalists",false);leggingsRewards.addAll(y.getStringList("leggings-rewards"));
         ConfigurationSection ts=y.getConfigurationSection("teams");if(ts!=null)for(String t:ts.getKeys(false)){
             LinkedHashSet<UUID> members=new LinkedHashSet<>();for(String id:ts.getStringList(t))try{members.add(UUID.fromString(id));}catch(IllegalArgumentException ignored){}teams.put(t,members);
         }
@@ -724,7 +747,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         ConfigurationSection buy=y.getConfigurationSection("purchases");if(buy!=null)for(String t:buy.getKeys(false)){ConfigurationSection sec=buy.getConfigurationSection(t);if(sec!=null)for(String k:sec.getKeys(false))purchases.computeIfAbsent(t,x->new HashMap<>()).put(k,sec.getInt(k));}
     }
     private void saveState(){
-        YamlConfiguration y=new YamlConfiguration();y.set("game",game);y.set("finalists",finalists);
+        YamlConfiguration y=new YamlConfiguration();y.set("game",game);y.set("finalists",finalists);y.set("finale-started",finaleStarted);y.set("manual-finalists",manualFinalists);y.set("leggings-rewards",new ArrayList<>(leggingsRewards));
         for(var e:teams.entrySet())y.set("teams."+e.getKey(),e.getValue().stream().map(UUID::toString).toList());
         for(var e:locations.entrySet())y.set("locations."+e.getKey(),e.getValue());
         for(var e:teamColors.entrySet())y.set("team-colors."+e.getKey(),e.getValue());
@@ -768,6 +791,109 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
         say(s,"Vorrunden-Rangliste aktualisiert (Gleichstände teilen Platzierungspunkte).");saveState();
     }
+    private void beginFinale(CommandSender sender){
+        if(finaleStarted){say(sender,"Finale wurde bereits eröffnet.");return;}
+        if(!manualFinalists || finalists.size()!=2){
+            List<String> order=new ArrayList<>(teams.keySet());order.removeIf(t->teams.get(t).isEmpty());
+            order.sort(Comparator.comparingInt((String t)->qualifying.getOrDefault(t,0)).reversed().thenComparing(t->t));
+            if(order.size()<2){say(sender,"Mindestens zwei Teams mit Mitgliedern erforderlich.");return;}
+            if(order.size()>2 && Objects.equals(qualifying.get(order.get(1)),qualifying.get(order.get(2)))){
+                say(sender,"Gleichstand um Platz 2! /wg finalist <Team1> <Team2>, danach /wg finishround.");return;
+            }
+            finalists=new ArrayList<>(order.subList(0,2));
+        }
+        finaleStarted=true;advantages.clear();leggingsRewards.clear();
+        for(String t:finalists)advantages.put(t,0);
+        List<String> eliminated=new ArrayList<>(teams.keySet());eliminated.removeAll(finalists);
+        broadcast("§c§lAUSGESCHIEDENE TEAMS: §7"+(eliminated.isEmpty()?"Keine":String.join(", ",eliminated)));
+        String a=finalists.get(0),b=finalists.get(1);
+        broadcast("§5§lFINALE! §f"+a+" §dVS §f"+b+" §7– Vorteilspunkte sammeln!");
+        for(Player player:Bukkit.getOnlinePlayers()){
+            String t=team(player.getUniqueId());
+            if(t!=null && !finalists.contains(t))player.setGameMode(GameMode.SPECTATOR);
+            else if(t!=null && finalists.contains(t) && player.getGameMode()==GameMode.SPECTATOR)player.setGameMode(GameMode.ADVENTURE);
+            player.sendTitle("§d"+a+" §fVS §d"+b,"§eDAS FINALE – VORTEILE SAMMELN!",10,100,20);
+            player.playSound(player.getLocation(),Sound.UI_TOAST_CHALLENGE_COMPLETE,0.8f,1f);
+        }
+        selected.clear();selectionEnabled=false;studioLocked=true;
+        saveState();say(sender,"Finalteams beraten sich. /wg game 6, dann /wg select on für die Spielerwahl.");
+    }
+    private void loadWordQuestions(){
+        wordQuestions.clear();File file=new File(getDataFolder(),"questions-game6.yml");
+        if(!file.exists())saveResource("questions-game6.yml",false);
+        YamlConfiguration y=YamlConfiguration.loadConfiguration(file);
+        for(Map<?,?> row:y.getMapList("questions")){
+            Object prompt=row.get("question"),answers=row.get("answers");
+            if(!(prompt instanceof String q) || !(answers instanceof List<?> list))continue;
+            Set<String> allowed=new HashSet<>();for(Object answer:list)if(answer instanceof String a)allowed.add(normalizeWord(a));
+            if(!allowed.isEmpty())wordQuestions.add(new WordQuestion(q,allowed));
+        }
+    }
+    private String normalizeWord(String a){return a.strip().toLowerCase(Locale.ROOT).replace('ä','a').replace('ö','o').replace('ü','u').replace("ß","ss").replaceAll("[ _-]+"," ");}
+    private void startWordDuell(CommandSender sender){
+        if(!finaleStarted||finalists.size()!=2){say(sender,"Erst /wg finishround nach Game 5 durchführen.");return;}
+        if(running){say(sender,"Es läuft bereits ein Spiel.");return;}
+        for(String t:finalists){UUID id=selected.get(t);if(id==null||!teams.getOrDefault(t,new LinkedHashSet<>()).contains(id)||Bukkit.getPlayer(id)==null){say(sender,"Für "+t+" fehlt der ausgewählte Online-Kandidat: /wg select on oder /wg candidate set "+t+" <Spieler>.");return;}}
+        if(wordQuestions.size()<13){say(sender,"Mindestens 13 gültige Fragen in questions-game6.yml nötig.");return;}
+        wordSequence.clear();wordSequence.addAll(wordQuestions.subList(0,13));wordAnswers.clear();wordUsed.clear();
+        wordRound=0;wordAccepting=false;wordGeneration++;game=6;running=true;selectionEnabled=false;
+        broadcast("§d§lWORTDUELL STARTET! §7Drei Sekunden Lesezeit, dann antworten!");
+        nextWordRound(wordGeneration);
+    }
+    private void nextWordRound(int generation){
+        if(!running||game!=6||generation!=wordGeneration)return;
+        if(wordRound>=13){completeWordDuell("Beide Finalisten haben alle 13 Runden bestanden!",new HashSet<>(finalists));return;}
+        wordRound++;wordAnswers.clear();wordAccepting=false;
+        WordQuestion q=wordSequence.get(wordRound-1);
+        for(Player p:Bukkit.getOnlinePlayers()){p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_PLING,0.7f,1.1f);}
+        broadcast("§d§lWORTDUELL §fRunde "+wordRound+"/13 §7– 3 Sekunden lesen!");
+        gameOneScreen.showWordDuell(wordRound,q.prompt(),3,false);
+        Bukkit.getScheduler().runTaskLater(this,()->{
+            if(!running||generation!=wordGeneration)return;
+            wordAccepting=true;
+            int seconds=14-wordRound;
+            for(Player p:Bukkit.getOnlinePlayers())p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_BELL,0.8f,1.3f);
+            for(int left=seconds;left>=1;left--){final int remaining=left;
+                Bukkit.getScheduler().runTaskLater(this,()->{
+                    if(!running||generation!=wordGeneration||!wordAccepting)return;
+                    gameOneScreen.showWordDuell(wordRound,q.prompt(),remaining,true);
+                    if(remaining<=3)for(Player p:Bukkit.getOnlinePlayers())p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_HAT,0.65f,1.2f);
+                },(seconds-left)*20L);
+            }
+            Bukkit.getScheduler().runTaskLater(this,()->finishWordRound(generation),seconds*20L);
+        },60L);
+    }
+    private void submitWord(Player p,String input){
+        if(!wordAccepting||!running||game!=6)return;
+        String t=team(p.getUniqueId());if(t==null||!finalists.contains(t)||!Objects.equals(selected.get(t),p.getUniqueId()))return;
+        if(wordAnswers.containsKey(t)){say(p,"§aAntwort ist bereits eingeloggt.");return;}
+        String answer=normalizeWord(input);
+        boolean used=wordUsed.getOrDefault(t,Set.of()).contains(answer);
+        boolean valid=wordSequence.get(wordRound-1).answers().contains(answer)&&!used;
+        for(Player op:Bukkit.getOnlinePlayers())if(op.hasPermission("wg.admin"))op.sendMessage("§8[§dWortduell OP§8] §f"+p.getName()+": "+input+" §7→ "+(valid?"§aRICHTIG":used?"§cWIEDERHOLUNG":"§cUNGÜLTIG"));
+        if(!valid){say(p,used?"§cSchon benutzt! Probiere ein anderes Wort.":"§cUngültig! Achte auf Schreibweise und Begriff.");p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_BASS,0.7f,0.7f);return;}
+        wordAnswers.put(t,answer);wordUsed.computeIfAbsent(t,k->new HashSet<>()).add(answer);
+        say(p,"§a✔ "+input+" – Richtig eingeloggt!");p.playSound(p.getLocation(),Sound.ENTITY_PLAYER_LEVELUP,0.6f,1.7f);
+    }
+    private void finishWordRound(int generation){
+        if(!running||game!=6||generation!=wordGeneration)return;
+        wordAccepting=false;
+        Set<String> surviving=new HashSet<>(wordAnswers.keySet());
+        if(surviving.size()<2){
+            completeWordDuell(surviving.isEmpty()?"Beide ausgeschieden! Beide erhalten den Vorteil.":"Ein Finalist hat überlebt!",surviving.isEmpty()?new HashSet<>(finalists):surviving);return;
+        }
+        broadcast("§aBeide haben Runde "+wordRound+" geschafft!");
+        gameOneScreen.showWordDuell(wordRound,"BEIDE ÜBERLEBEN!",0,false);
+        Bukkit.getScheduler().runTaskLater(this,()->nextWordRound(generation),40L);
+    }
+    private void completeWordDuell(String reason,Set<String> winners){
+        if(!running||game!=6)return;wordAccepting=false;running=false;wordGeneration++;
+        for(String t:winners){if(leggingsRewards.add(t)){advantages.merge(t,1,Integer::sum);}}
+        broadcast("§6§lWORTDUELL BEENDET! §f"+reason);
+        broadcast("§dNetherite-Hose (Schutz I, Haltbarkeit I) für: §f"+String.join(" & ",winners)+" §7– Vorteil gespeichert.");
+        gameOneScreen.idle();saveState();
+    }
+    private void stopWordDuell(){wordGeneration++;wordAccepting=false;if(game==6){running=false;gameOneScreen.idle();}}
     private void finalizeTeams(CommandSender s){
         if(teams.size()<2){say(s,"Mindestens zwei Teams erforderlich.");return;}
         for(String t:teams.keySet())for(int r=1;r<=5;r++)if(!raw.getOrDefault(t,Map.of()).containsKey(r)){say(s,"Fehlende Rohwertung: "+t+", Spiel "+r);return;}
@@ -980,7 +1106,30 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             &&p.getBlockZ()>=Math.min(a.getBlockZ(),b.getBlockZ())&&p.getBlockZ()<=Math.max(a.getBlockZ(),b.getBlockZ());
     }
     @EventHandler public void onPlayerEnter(PlayerJoinEvent e){Bukkit.getScheduler().runTaskLater(this,()->equipTeam(e.getPlayer()),5L);}
+    private void teamMessage(Player sender,String text){
+        String t=team(sender.getUniqueId());if(t==null){say(sender,"Du bist in keinem Team.");return;}
+        if(text.isBlank()){say(sender,"/t <Nachricht>");return;}
+        String line="§8[§dTeam "+t+"§8] §f"+sender.getName()+"§7: "+text;
+        for(Player recipient:Bukkit.getOnlinePlayers())if(t.equals(team(recipient.getUniqueId())) || recipient.hasPermission("wg.admin"))recipient.sendMessage(line);
+    }
+    @EventHandler(priority=EventPriority.LOWEST) public void privateTeamChat(AsyncPlayerChatEvent e){
+        if(!persistentTeamChat.contains(e.getPlayer().getUniqueId()))return;
+        String t=team(e.getPlayer().getUniqueId());
+        if(game==6 && running && t!=null && finalists.contains(t) && Objects.equals(selected.get(t),e.getPlayer().getUniqueId()))return;
+        // Team chat never leaves the plugin; send only from the server thread.
+        e.setCancelled(true);Player speaker=e.getPlayer();String text=e.getMessage();
+        Bukkit.getScheduler().runTask(this,()->teamMessage(speaker,text));
+    }
+    private boolean commandTeamChat(CommandSender sender,Command command,String[] args){
+        if(!(sender instanceof Player p)){say(sender,"Nur Spieler können Teamchat nutzen.");return true;}
+        if(command.getName().equalsIgnoreCase("t")) {teamMessage(p,String.join(" ",args));return true;}
+        if(args.length==0){say(p,"/tc on|off");return true;}
+        if(args[0].equalsIgnoreCase("on")){persistentTeamChat.add(p.getUniqueId());say(p,"Teamchat eingeschaltet.");}
+        else if(args[0].equalsIgnoreCase("off")){persistentTeamChat.remove(p.getUniqueId());say(p,"Öffentlicher Chat eingeschaltet.");}
+        else say(p,"/tc on|off");return true;
+    }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args){
+        if(command.getName().equalsIgnoreCase("t")||command.getName().equalsIgnoreCase("tc"))return commandTeamChat(sender,command,args);
         if(args.length==0 || args[0].equalsIgnoreCase("help")){
             say(sender,"/wg team create|delete|color|join|leave|list | /wg wand region | /wg wand neon <Team> | /wg region save cage:<Team>");
             say(sender,"/wg studio lock|unlock | /wg region save selection:<Team> | /wg select on/off");
@@ -994,6 +1143,11 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             say(sender,"/wg points <Team> | /wg points add <Team> <Zahl> | /wg spend <Team> <Kosten> <Notiz>");return true;
         }
         String cmd=args[0].toLowerCase(Locale.ROOT);
+        if(cmd.equals("game6")&&admin(sender)){if(args.length>=2){switch(args[1].toLowerCase(Locale.ROOT)){
+            case "start" -> {startWordDuell(sender);return true;}
+            case "stop" -> {stopWordDuell();say(sender,"Wortduell gestoppt.");return true;}
+            case "reload" -> {loadWordQuestions();say(sender,"Wortduell-Fragen geladen: "+wordQuestions.size());return true;}
+        }}say(sender,"/wg game6 start|stop|reload");return true;}
         if(cmd.equals("game5")&&admin(sender)){if(args.length>=2){switch(args[1].toLowerCase(Locale.ROOT)){case "start"->{startEstimates(sender);return true;}case "stop"->{estimateGeneration++;estimateAccepting=false;answerDeadline=0;running=false;gameOneScreen.idle();say(sender,"Schätz mal gestoppt.");return true;}case "reload"->{loadEstimateQuestions();say(sender,"Game-5-Fragen neu geladen: "+estimateBank.size());return true;}case "skip"->{if(game==5&&running){estimateGeneration++;int gen=estimateGeneration;estimateAccepting=false;answerDeadline=0;Bukkit.getScheduler().runTaskLater(this,()->nextEstimate(gen),10L);}return true;}}}say(sender,"/wg game5 start|stop|reload|skip");return true;}
         if(cmd.equals("game4")&&admin(sender)){if(args.length>=2&&(args[1].equalsIgnoreCase("line1")||args[1].equalsIgnoreCase("line2"))){if(sender instanceof Player p)gameFour.line(p,args[1].equalsIgnoreCase("line1")?1:2);else say(sender,"Nur ingame möglich.");return true;}if(args.length>=2&&args[1].equalsIgnoreCase("spectator")){if(sender instanceof Player p)gameFour.spectator(p);else say(sender,"Nur ingame möglich.");return true;}if(args.length>=2){switch(args[1].toLowerCase(Locale.ROOT)){case "start" -> {game=4;archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();saveState();}return true;}case "stop" -> {gameFour.stop();running=false;return true;}case "reset" -> {gameFour.reset();archeryHits.clear();return true;}}}say(sender,"/wg game4 spectator|line1|line2|start|stop|reset");return true;}
         if(cmd.equals("game3")&&admin(sender)){if(args.length>=2&&args[1].equalsIgnoreCase("start")){gameThree.start(sender);return true;}if(args.length>=2&&args[1].equalsIgnoreCase("stop")){gameThree.stop();say(sender,"Rennen gestoppt.");return true;}if(args.length>=2&&args[1].equalsIgnoreCase("debug")){gameThree.toggleDebug(sender);return true;}if(args.length>=3&&args[1].equalsIgnoreCase("laps")){try{gameThree.setLaps(sender,Integer.parseInt(args[2]));}catch(NumberFormatException ex){say(sender,"/wg game3 laps <1-20>");}return true;}say(sender,"/wg game3 start|stop|debug|laps <1-20>");return true;}
@@ -1098,7 +1252,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                         qualifying.clear();raw.clear();individual.clear();quizScores.clear();
                         advantages.clear();basketballScores.clear();parkourScores.clear();mysteryScores.clear();
                         rankLast.clear();questionNumber=0;usedQuestions.clear();attemptedBuzzers.clear();
-                        finalists.clear();selected.clear();answerDeadline=0;game1RoundEnds=0;
+                        finalists.clear();finaleStarted=false;manualFinalists=false;leggingsRewards.clear();selected.clear();answerDeadline=0;game1RoundEnds=0;
                         saveState();updateDisplays();say(sender,"Alle Testpunkte zurückgesetzt. Teams, Regionen und Buzzer bleiben.");return true;
                     }
                     if(args[1].equalsIgnoreCase("game1")){
@@ -1116,7 +1270,9 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                         if(game==1||game==2||game==5)for(String t:teams.keySet())if(participatedInRound(t,game))raw.computeIfAbsent(t,k->new HashMap<>()).put(game,quizScores.getOrDefault(t,0));
                         if(game==3)for(var entry:gameThree.results().entrySet())raw.computeIfAbsent(entry.getKey(),k->new HashMap<>()).put(3,entry.getValue());
                         if(game==4)for(String t:teams.keySet())if(!teams.get(t).isEmpty() && archeryHits.containsKey(t))raw.computeIfAbsent(t,k->new HashMap<>()).put(game,archeryHits.getOrDefault(t,0));
-                        running=false;if(game==3)gameThree.stop();if(game==2){game2Accepting=false;restoreGame2Inventories();}rankRound(sender,game);broadcast("§dSpiel "+game+" abgeschlossen.");return true;
+                        running=false;if(game==3)gameThree.stop();if(game==2){game2Accepting=false;restoreGame2Inventories();}rankRound(sender,game);broadcast("§dSpiel "+game+" abgeschlossen.");
+                        if(game==5){estimateGeneration++;estimateAccepting=false;answerDeadline=0;beginFinale(sender);}
+                        return true;
                     }break;
                 }
                 case "candidate" -> {
@@ -1126,6 +1282,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     String targetTeam=teams.keySet().stream().filter(k->k.equalsIgnoreCase(args[2])).findFirst().orElse(null);
                     Player candidate=Bukkit.getPlayerExact(args[3]);
                     if(targetTeam==null || candidate==null){say(sender,"Team unbekannt oder Spieler offline.");return true;}
+                    if(finaleStarted&&!finalists.contains(targetTeam)){say(sender,"Nur Finalteams dürfen sich auswählen.");return true;}
                     if(!teams.get(targetTeam).contains(candidate.getUniqueId())){
                         say(sender,candidate.getName()+" gehört nicht zu "+targetTeam+". Erst /wg team join "+targetTeam+" "+candidate.getName());return true;
                     }
@@ -1166,18 +1323,18 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     if(enable){selected.clear();}
                     else {returnUnselectedToCages();studioLocked=true;}
                     saveState();say(sender,"Spielerwahl "+(selectionEnabled?"aktiv":"aus"));return true;}
-                case "game" -> {estimateGeneration++;estimateAccepting=false;answerDeadline=0;if(game==4)gameFour.stop();if(game==3)gameThree.stop();if(game==2)restoreGame2Inventories();if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;if(game==g){say(sender,"Spiel "+g+" ist bereits gewählt. Kandidaten bleiben erhalten ("+selected.size()+" registriert).");return true;}running=false;game=g;selected.clear();selectionTicks.clear();buzzed=null;attemptedBuzzers.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]+". Kandidaten für das neue Spiel neu wählen.");saveState();return true;}
-                case "start" -> {if(game==5){startEstimates(sender);return true;}if(game==3){gameThree.start(sender);return true;}if(game==4){archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();broadcast("§dSTART: "+GAMES[game-1]);saveState();}return true;}if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;if(game==1||game==2){teleportCandidatesToSelection();}if(game==2){prepareGame2Inventories();}if(game==1){say(sender,"Game 1 startet mit "+selected.size()+" registrierten Kandidaten. /wg candidates zeigt die Zuordnung.");if(selected.isEmpty())say(sender,"ACHTUNG: Keine Kandidaten gewählt! Bitte /wg candidate set <Team> <Spieler> nutzen.");}
+                case "game" -> {if(game==6)stopWordDuell();estimateGeneration++;estimateAccepting=false;answerDeadline=0;if(game==4)gameFour.stop();if(game==3)gameThree.stop();if(game==2)restoreGame2Inventories();if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;if(game==g){say(sender,"Spiel "+g+" ist bereits gewählt. Kandidaten bleiben erhalten ("+selected.size()+" registriert).");return true;}running=false;game=g;selected.clear();selectionTicks.clear();buzzed=null;attemptedBuzzers.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]+". Kandidaten für das neue Spiel neu wählen.");saveState();return true;}
+                case "start" -> {if(game==6){startWordDuell(sender);return true;}if(game==5){startEstimates(sender);return true;}if(game==3){gameThree.start(sender);return true;}if(game==4){archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();broadcast("§dSTART: "+GAMES[game-1]);saveState();}return true;}if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;if(game==1||game==2){teleportCandidatesToSelection();}if(game==2){prepareGame2Inventories();}if(game==1){say(sender,"Game 1 startet mit "+selected.size()+" registrierten Kandidaten. /wg candidates zeigt die Zuordnung.");if(selected.isEmpty())say(sender,"ACHTUNG: Keine Kandidaten gewählt! Bitte /wg candidate set <Team> <Spieler> nutzen.");}
                     if(game==1||game==2||game==5){game1QuestionActive=false;quizScores.clear();usedQuestions.clear();questionNumber=0;gameOneScreen.idle();Bukkit.getScheduler().runTaskLater(this,this::nextQuestion,30L);}
                     if(game==3){raceProgress.clear();raceFinishes.clear();}
                     if(game==4){archeryHits.clear();archeryFinishTimes.clear();}
                     broadcast("§dSTART: "+GAMES[game-1]);saveState();return true;}
-                case "stop" -> {if(game==5){estimateGeneration++;estimateAccepting=false;answerDeadline=0;}if(game==4)gameFour.stop();if(game==3){gameThree.stop();running=false;gameOneScreen.idle();say(sender,"Rennen gestoppt.");return true;}if(game==2){game2Accepting=false;game2Revealing=false;answerDeadline=0;restoreGame2Inventories();}if(game==7&&running){stopParkour();return true;}if(game==8&&running){finishMystery();return true;}running=false;gameOneScreen.idle();broadcast("Spiel gestoppt.");saveState();return true;}
+                case "stop" -> {if(game==6){stopWordDuell();say(sender,"Wortduell gestoppt.");return true;}if(game==5){estimateGeneration++;estimateAccepting=false;answerDeadline=0;}if(game==4)gameFour.stop();if(game==3){gameThree.stop();running=false;gameOneScreen.idle();say(sender,"Rennen gestoppt.");return true;}if(game==2){game2Accepting=false;game2Revealing=false;answerDeadline=0;restoreGame2Inventories();}if(game==7&&running){stopParkour();return true;}if(game==8&&running){finishMystery();return true;}running=false;gameOneScreen.idle();broadcast("Spiel gestoppt.");saveState();return true;}
                 case "raw" -> {if(args.length<4)break;String t=args[1];int n=Integer.parseInt(args[2]),v=Integer.parseInt(args[3]);if(!teams.containsKey(t)||n<1||n>5)break;raw.computeIfAbsent(t,k->new HashMap<>()).put(n,v);say(sender,"Rohwertung "+t+" Spiel "+n+" = "+v);rankRound(sender,n);return true;}
                 case "rank" -> {rankRound(sender,5);return true;}
                 case "qualify" -> {finalizeTeams(sender);return true;}
-                case "finalist" -> {if(args.length<3||!teams.containsKey(args[1])||!teams.containsKey(args[2])||args[1].equals(args[2]))break;finalists=List.of(args[1],args[2]);advantages.clear();for(String t:finalists)advantages.put(t,0);broadcast("Finale: "+finalists);saveState();return true;}
-                case "basket" -> {if(args.length<3)break;String t=args[1];int v=Integer.parseInt(args[2]);if(game!=6||!finalTeam(t)||v<0||v>6)break;int old=basketballScores.getOrDefault(t,0);basketballScores.put(t,v);advantages.merge(t,v-old,Integer::sum);say(sender,t+" Basketball = "+v+" Vorteilspunkte (Differenz gebucht)");saveState();return true;}
+                case "finalist" -> {if(args.length<3||!teams.containsKey(args[1])||!teams.containsKey(args[2])||args[1].equals(args[2]))break;finalists=new ArrayList<>(List.of(args[1],args[2]));manualFinalists=true;finaleStarted=false;advantages.clear();for(String t:finalists)advantages.put(t,0);broadcast("Finale: "+finalists);saveState();return true;}
+                case "basket" -> {say(sender,"Basketball wurde durch Wortduell ersetzt.");return true;}
                 case "parkour" -> {if(args.length<2||!args[1].equalsIgnoreCase("finish")||!(sender instanceof Player p)||game!=7||!running)break;Location goal=locations.get("parkour-finish");if(goal==null)break;p.teleport(goal);return true;}
                 case "chest" -> {if(args.length<2)break;switch(args[1].toLowerCase(Locale.ROOT)){
                     case "add" -> {if(!(sender instanceof Player p))break;Block b=p.getTargetBlockExact(6);if(b==null||!(b.getType()==Material.CHEST||b.getType()==Material.TRAPPED_CHEST)){say(sender,"Schaue auf eine Truhe (max 6 Blöcke).");return true;}mysteryChestValues.putIfAbsent(key(b.getLocation()),0);say(sender,"Truhe markiert: "+mysteryChestValues.size()+"/50");saveState();return true;}
@@ -1215,8 +1372,9 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         say(p,"Gekauft: "+item+" für "+cost+" Punkte. Rest: "+advantages.get(t));p.playSound(p.getLocation(),"wolfsfell.purchase",1f,1f);saveState();
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
-        if(args.length==1)return Arrays.stream(new String[]{"screen","game3","game5","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==1)return Arrays.stream(new String[]{"screen","game3","game5","game6","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         if(args.length==2&&args[0].equalsIgnoreCase("game3"))return List.of("start","stop","debug","laps");
+        if(args.length==2&&args[0].equalsIgnoreCase("game6"))return List.of("start","stop","reload");
         if(args.length==2&&args[0].equalsIgnoreCase("screen"))return List.of("set","test","remove","idle");
         if(args.length==2&&args[0].equalsIgnoreCase("candidate"))return List.of("set");
         if(args.length==3&&args[0].equalsIgnoreCase("candidate")&&args[1].equalsIgnoreCase("set"))

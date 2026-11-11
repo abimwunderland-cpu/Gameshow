@@ -1,0 +1,324 @@
+# Game 6: exactly first 13 entries in order, no random shuffle. Add aliases per question.
+questions:
+- question: Nenne ein Minecraft-Erz!
+  answers:
+  - kohle
+  - kohlerz
+  - eisen
+  - eisenerz
+  - gold
+  - golderz
+  - kupfer
+  - kupfererz
+  - diamant
+  - diamanterz
+  - smaragd
+  - smaragderz
+  - redstone
+  - redstoneerz
+  - lapis
+  - lapislazuli
+  - lapislazulierz
+  - quarz
+  - netherquarz
+  - netherquarzerz
+  - antiker schrott
+  - ancient debris
+  - nethergolderz
+- question: Nenne einen feindlichen Minecraft-Mob!
+  answers:
+  - zombie
+  - skelett
+  - creeper
+  - spinne
+  - höhlenspinne
+  - hexe
+  - silberfisch
+  - slime
+  - schleim
+  - magmaschleim
+  - ghast
+  - blaze
+  - lohe
+  - witherskelett
+  - wither
+  - warden
+  - wärter
+  - phantom
+  - ertrunkener
+  - husk
+  - wüstenzombie
+  - streuner
+  - stray
+  - piglin brutalo
+  - piglin brute
+  - plünderer
+  - pillager
+  - verwüster
+  - ravager
+  - vindicator
+  - diener
+  - evoker
+  - magier
+  - shulker
+  - hoglin
+  - zoglin
+  - bogged
+  - breeze
+- question: Nenne eine Minecraft-Nahrung!
+  answers:
+  - brot
+  - apfel
+  - goldener apfel
+  - karotte
+  - goldene karotte
+  - kartoffel
+  - ofenkartoffel
+  - kuchen
+  - keks
+  - kürbiskuchen
+  - melone
+  - melonenscheibe
+  - süßbeeren
+  - leuchtbeeren
+  - rohes rindfleisch
+  - steak
+  - rohes schweinefleisch
+  - gebratenes schweinefleisch
+  - rohes hühnchen
+  - gebratenes hühnchen
+  - roher kabeljau
+  - gebratener kabeljau
+  - lachs
+  - gebratener lachs
+  - kanincheneintopf
+  - pilzsuppe
+  - rote bete
+  - roten beten suppe
+  - chorusfrucht
+  - honigflasche
+  - getrockneter seetang
+- question: Nenne eine Holzart aus Minecraft!
+  answers:
+  - eiche
+  - fichte
+  - birke
+  - tropenholz
+  - dschungelholz
+  - akazie
+  - schwarzeiche
+  - mangrove
+  - kirschholz
+  - kirsche
+  - bambus
+  - karmesin
+  - karmesinholz
+  - wirrholz
+  - blasseiche
+  - blasse eiche
+- question: Nenne eine Minecraft-Verzauberung!
+  answers:
+  - schärfe
+  - schaden
+  - effizienz
+  - haltbarkeit
+  - reparatur
+  - behutsamkeit
+  - glück
+  - plünderung
+  - rückstoß
+  - verbrennung
+  - feueraspekt
+  - schutz
+  - feuerschutz
+  - explosionsschutz
+  - schusssicher
+  - dornen
+  - federfall
+  - atmung
+  - wasseraffinität
+  - wasserläufer
+  - eisläufer
+  - seelenläufer
+  - fluch der bindung
+  - fluch des verschwindens
+  - kraft
+  - schlag
+  - flamme
+  - unendlichkeit
+  - treue
+  - sog
+  - entladung
+  - aufspießen
+  - schnellladen
+  - mehrfachschuss
+  - durchschuss
+  - dichte
+  - bruch
+  - windstoß
+- question: Nenne eine Minecraft-Struktur!
+  answers:
+  - dorf
+  - wüstentempel
+  - dschungeltempel
+  - iglu
+  - pillager außenposten
+  - plünderer außenposten
+  - waldanwesen
+  - ozeanmonument
+  - unterwasserruine
+  - schiffswrack
+  - vergrabener schatz
+  - minenschacht
+  - festung
+  - stronghold
+  - netherfestung
+  - bastionsruine
+  - endstadt
+  - endschiff
+  - antike stadt
+  - trial chambers
+  - prüfungskammern
+  - ruinenportal
+  - sumpfhütte
+- question: Nenne einen neutralen Minecraft-Mob!
+  answers:
+  - enderman
+  - wolf
+  - biene
+  - eisengolem
+  - ziege
+  - lama
+  - händlerlama
+  - spinne
+  - höhlenspinne
+  - piglin
+  - zombifizierter piglin
+  - delfin
+  - panda
+  - eisbär
+- question: Nenne einen Statuseffekt in Minecraft!
+  answers:
+  - schnelligkeit
+  - langsamkeit
+  - stärke
+  - schwäche
+  - regeneration
+  - heilung
+  - schaden
+  - vergiftung
+  - withereffekt
+  - wither
+  - feuerresistenz
+  - resistenz
+  - wasseratmung
+  - nachtsicht
+  - unsichtbarkeit
+  - sprungkraft
+  - abbauermüdung
+  - eile
+  - schwebekraft
+  - langsamfall
+  - sättigung
+  - hunger
+  - übelkeit
+  - blindheit
+  - dunkelheit
+  - glück
+  - unglück
+- question: Nenne ein Item aus dem Nether!
+  answers:
+  - ghastträne
+  - lohenrute
+  - blazerute
+  - magmacreme
+  - netherwarze
+  - netherquarz
+  - quarz
+  - glowstone staub
+  - glowstonestaub
+  - netheritbarren
+  - netheritschrott
+  - antiker schrott
+  - seelensand
+  - seelenerde
+  - weinender obsidian
+  - schwarzstein
+  - basalt
+  - goldnugget
+- question: Nenne einen Dorfbewohner-Beruf!
+  answers:
+  - bauer
+  - farmer
+  - bibliothekar
+  - schmied
+  - waffenschmied
+  - werkzeugschmied
+  - rüstungsschmied
+  - metzger
+  - fischer
+  - kartograf
+  - geistlicher
+  - kleriker
+  - lederer
+  - lederarbeiter
+  - pfeilmacher
+  - schäfer
+  - steinmetz
+- question: Nenne ein Item aus Piglin-Tauschhandel!
+  answers:
+  - obsidian
+  - weinender obsidian
+  - enderperle
+  - feuerkugel
+  - feuerresistenztrank
+  - spritztrank der feuerresistenz
+  - wasserflasche
+  - seelensand
+  - netherziegel
+  - quarz
+  - netherquarz
+  - kies
+  - schwarzstein
+  - spektralpfeil
+  - faden
+  - leder
+  - eisenstiefel mit seelenläufer
+  - eisennugget
+- question: Nenne eine Schmiedevorlage!
+  answers:
+  - netherit upgrade
+  - netheritaufwertung
+  - küste
+  - düne
+  - auge
+  - wildnis
+  - ribbe
+  - rippe
+  - schnauze
+  - spire
+  - turmspitze
+  - ward
+  - wächter
+  - silence
+  - stille
+  - vex
+  - geist
+  - sentry
+  - wache
+  - wayfinder
+  - wegbereiter
+  - shaper
+  - former
+  - raiser
+  - host
+  - gastgeber
+  - flow
+  - fluss
+  - bolt
+  - blitz
+- question: Nenne einen Mob der End-Dimension!
+  answers:
+  - enderman
+  - enderdrache
+  - shulker

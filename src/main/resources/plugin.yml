@@ -5,6 +5,12 @@ api-version: '1.21.11'
 author: WolfsfellTV
 softdepend: [BasketballCraft]
 commands:
+  t:
+    description: Privater Gameshow-Teamchat
+    usage: /t <Nachricht>
+  tc:
+    description: Teamchat dauerhaft aktivieren oder deaktivieren
+    usage: /tc on|off
   wg:
     description: Wolfsfell Gameshow Verwaltung
     usage: /wg help

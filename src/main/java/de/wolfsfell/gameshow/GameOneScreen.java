@@ -28,6 +28,8 @@ final class GameOneScreen {
     private final List<ItemFrame> frames=new ArrayList<>();
     private BufferedImage source, display;
     private String current="";
+    private boolean wordMode=false,wordActive=false;
+    private String wordPrompt=""; private int wordRound=0,wordSeconds=0;
     private boolean quiz2=false;
     private boolean estimateMode=false,estimateTest=false;
     private String estimatePrompt="";private Integer estimateAnswer=null;
@@ -142,7 +144,7 @@ final class GameOneScreen {
         if(file.exists()&&!file.delete())plugin.getLogger().warning("Could not delete wide-screen.yml");
         return removed;
     }
-    void idle(){estimateMode=false;quiz2=false;active=false;frozen=false;phase=-1;source=null;current="";lastSignature="";render();}
+    void idle(){wordMode=false;estimateMode=false;quiz2=false;active=false;frozen=false;phase=-1;source=null;current="";lastSignature="";render();}
     void show(String answer){
         current=answer;phase=-1;frozen=false;active=true;lastChange=0;
         try(var stream=plugin.getResource("game1/"+answer+".png")){
@@ -157,6 +159,10 @@ final class GameOneScreen {
     void advance(){if(!active||source==null||frozen)return;long now=System.currentTimeMillis();if(phase>=6||now-lastChange<4000)return;lastChange=now;phase++;render();}
     void showQuiz2(int number,String prompt,String[] options,int seconds,int count,int total,String correct){
         estimateMode=false;quiz2=true;active=false;quiz2Number=number;quiz2Prompt=prompt;quiz2Choices=options.clone();quiz2Seconds=seconds;quiz2Count=count;quiz2Total=total;quiz2Correct=correct;render();
+    }
+    void showWordDuell(int round,String prompt,int seconds,boolean answering){
+        wordMode=true;wordRound=round;wordPrompt=prompt;wordSeconds=seconds;wordActive=answering;
+        estimateMode=false;quiz2=false;active=false;render();
     }
     void showEstimate(int number,boolean test,String prompt,int seconds,int count,int total,Integer answer){
         estimateMode=true;quiz2=false;active=false;estimateNumber=number;estimateTest=test;
@@ -214,7 +220,17 @@ final class GameOneScreen {
         int cx=leftWidth,cy=0,centerWidth=9*TILE;
         g.setColor(new java.awt.Color(36,26,58));g.fillRect(cx,cy,centerWidth,HEIGHT);
         g.setColor(new java.awt.Color(162,93,240));g.setStroke(new BasicStroke(8));g.drawRect(cx+12,12,centerWidth-24,HEIGHT-24);
-        if(estimateMode){
+        if(wordMode){
+            centered(g,"WORTDUELL – RUNDE "+wordRound+" / 13",125,1050,59,Color.WHITE);
+            centered(g,wordActive?"ANTWORTZEIT":"LESEZEIT",230,1050,70,new Color(255,213,109));
+            StringBuilder line=new StringBuilder();int y=375;
+            for(String w:wordPrompt.split(" ")){String trial=line.length()==0?w:line+" "+w;
+                if(trial.length()>28&&line.length()>0){centered(g,line.toString(),y,1050,51,Color.WHITE);y+=80;line=new StringBuilder(w);}else line=new StringBuilder(trial);
+            }
+            if(line.length()>0)centered(g,line.toString(),y,1050,51,Color.WHITE);
+            centered(g,wordSeconds+" SEKUNDEN",770,1000,101,wordActive?new Color(255,140,140):new Color(177,149,255));
+            centered(g,wordActive?"SCHREIBE DEIN WORT IN DEN CHAT!":"GLEICH GEHT ES LOS!",HEIGHT-85,1040,39,Color.WHITE);
+        }else if(estimateMode){
             centered(g,estimateTest?"TESTRUNDE "+estimateNumber+" / 2":"FRAGE "+(estimateNumber-2)+" / 10",125,1000,64,Color.WHITE);
             centered(g,estimateAnswer==null?"NOCH "+estimateSeconds+" SEKUNDEN":"RICHTIGE ANTWORT",235,1000,61,new Color(255,213,109));
             String[] words=estimatePrompt.split(" ");StringBuilder line=new StringBuilder();int y=370;
