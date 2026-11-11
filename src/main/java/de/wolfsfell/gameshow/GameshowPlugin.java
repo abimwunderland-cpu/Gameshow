@@ -89,6 +89,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private final List<EstimateQuestion> estimateSequence=new ArrayList<>();
     private boolean estimateAccepting=false, estimateRevealing=false;
     private int estimateGeneration=0;
+    private static final int ESTIMATE_ANSWER_SECONDS=8;
+    private static final int ESTIMATE_REVEAL_SECONDS=10;
     private record EstimateQuestion(String difficulty,String prompt,int answer) {}
     private final Map<String,Integer> archeryHits = new HashMap<>();
     private GameFourTarget gameFour;
@@ -176,7 +178,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             broadcast("§c5 Sekunden vorbei! §7Buzzer wieder frei.");buzzed=null;buzzDeadline=0;game1RoundEnds=System.currentTimeMillis()+game1RemainingOnBuzz;gameOneScreen.resume();
         }
         if(game==2 && running && game2Accepting){int sec=(int)Math.max(0,(answerDeadline-System.currentTimeMillis()+999)/1000);if(sec!=game2LastSecond){game2LastSecond=sec;gameOneScreen.showQuiz2(questionNumber,currentPrompt,choices,sec,responses.size(),selected.size(),null);}}
-        if((game==2 || game==5) && answerDeadline>0 && System.currentTimeMillis()>=answerDeadline) {
+        if(game==2 && answerDeadline>0 && System.currentTimeMillis()>=answerDeadline) {
             answerDeadline=0; resolveQuestion();
         }
         if(game==7) {
@@ -312,7 +314,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 if(!List.of("A","B","C","D").contains(v)){say(p,"Antworte mit A, B, C oder D.");return;}
                 responses.putIfAbsent(t,v);say(p,"Antwort "+v+" gespeichert.");
             }else{
-                try{int n=Integer.parseInt(msg);estimates.put(t,n);say(p,"§aDeine geheime Schätzung: §f"+n);}
+                try{int n=Integer.parseInt(msg);estimates.put(t,n);say(p,"§aDeine geheime Schätzung: §f"+n);p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_PLING,0.65f,1.7f);}
                 catch(NumberFormatException x){say(p,"Bitte eine ganze Zahl schreiben.");}
             }
         });
@@ -388,6 +390,9 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     @EventHandler public void onGame2Drag(InventoryDragEvent e){if(e.getWhoClicked() instanceof Player p && isGame2Candidate(p))e.setCancelled(true);}
     @EventHandler public void onGame2Drop(PlayerDropItemEvent e){if(isGame2Candidate(e.getPlayer()))e.setCancelled(true);}
 
+    private void estimateSound(Sound sound,float pitch){
+        for(Player participant:Bukkit.getOnlinePlayers())participant.playSound(participant.getLocation(),sound,0.65f,pitch);
+    }
     private void loadEstimateQuestions(){
         estimateBank.clear();
         File f=new File(getDataFolder(),"questions-game5.yml");
@@ -397,7 +402,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             String difficulty=String.valueOf(row.get("difficulty")).toLowerCase(Locale.ROOT);
             String prompt=String.valueOf(row.get("question"));
             int answer=Integer.parseInt(String.valueOf(row.get("answer")));
-            if(Set.of("test","medium","hard","expert").contains(difficulty) && !prompt.isBlank())estimateBank.add(new EstimateQuestion(difficulty,prompt,answer));
+            if(Set.of("test","medium","hard","expert").contains(difficulty) && !prompt.isBlank() && estimateBank.stream().noneMatch(existing->existing.prompt().equalsIgnoreCase(prompt)))estimateBank.add(new EstimateQuestion(difficulty,prompt,answer));
         }catch(Exception ex){getLogger().warning("Game 5: invalid question: "+ex.getMessage());}
         getLogger().info("Game 5: "+estimateBank.size()+" questions loaded");
     }
@@ -416,6 +421,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         estimateGeneration++;running=true;game=5;questionNumber=0;quizScores.clear();estimates.clear();
         selectionEnabled=false;estimateAccepting=false;estimateRevealing=false;answerDeadline=0;
         startMillis=System.currentTimeMillis();broadcast("§dSCHÄTZ MAL! §72 Proberunden ohne Punkte, dann 10 Wertungsfragen!");
+        estimateSound(Sound.BLOCK_NOTE_BLOCK_BELL,1.0f);
         int gen=estimateGeneration;Bukkit.getScheduler().runTaskLater(this,()->nextEstimate(gen),40L);saveState();
     }
     private void nextEstimate(int gen){
@@ -428,20 +434,25 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
         EstimateQuestion q=estimateSequence.get(questionNumber++);estimates.clear();
         currentPrompt=q.prompt();correctAnswer=Integer.toString(q.answer());
-        estimateAccepting=true;estimateRevealing=false;answerDeadline=System.currentTimeMillis()+6000L;
+        estimateAccepting=true;estimateRevealing=false;answerDeadline=System.currentTimeMillis()+ESTIMATE_ANSWER_SECONDS*1000L;
         boolean test=questionNumber<=2;
         broadcast("§d"+(test?"TESTFRAGE "+questionNumber+"/2":"FRAGE "+(questionNumber-2)+"/10")+" §f"+currentPrompt);
-        broadcast("§7Ausgewählte Kandidaten: 6 Sekunden! Antworten sind geheim.");
-        for(int sec=6;sec>=1;sec--){final int remaining=sec;Bukkit.getScheduler().runTaskLater(this,()->{
-            if(gen==estimateGeneration&&running&&game==5&&estimateAccepting)gameOneScreen.showEstimate(questionNumber,test,currentPrompt,remaining,estimates.size(),selected.size(),null);
-        },(6-sec)*20L);}
-        Bukkit.getScheduler().runTaskLater(this,()->resolveEstimate(gen,q,test),120L);
+        broadcast("§7Ausgewählte Kandidaten: 8 Sekunden! Antworten sind geheim.");
+        estimateSound(Sound.BLOCK_NOTE_BLOCK_PLING,1.1f);
+        for(int sec=ESTIMATE_ANSWER_SECONDS;sec>=1;sec--){final int remaining=sec;Bukkit.getScheduler().runTaskLater(this,()->{
+            if(gen==estimateGeneration&&running&&game==5&&estimateAccepting){
+                gameOneScreen.showEstimate(questionNumber,test,currentPrompt,remaining,estimates.size(),selected.size(),null);
+                if(remaining<=3)estimateSound(Sound.BLOCK_NOTE_BLOCK_HAT,remaining==1?1.65f:1.25f);
+            }
+        },(ESTIMATE_ANSWER_SECONDS-sec)*20L);}
+        Bukkit.getScheduler().runTaskLater(this,()->resolveEstimate(gen,q,test),ESTIMATE_ANSWER_SECONDS*20L);
     }
     private void resolveEstimate(int gen,EstimateQuestion q,boolean test){
         if(gen!=estimateGeneration||!running||game!=5)return;
         estimateAccepting=false;estimateRevealing=true;answerDeadline=0;
         gameOneScreen.showEstimate(questionNumber,test,q.prompt(),0,estimates.size(),selected.size(),q.answer());
         broadcast("§aRICHTIGE ANTWORT: §f"+q.answer()+(test?" §7(Test – keine Punkte)":""));
+        estimateSound(Sound.ENTITY_PLAYER_LEVELUP,1.25f);
         TreeMap<Long,List<String>> groups=new TreeMap<>();
         for(var entry:estimates.entrySet())groups.computeIfAbsent(Math.abs((long)entry.getValue()-q.answer()),k->new ArrayList<>()).add(entry.getKey());
         int rank=0;
@@ -456,7 +467,12 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
         if(groups.isEmpty())broadcast("§7Niemand hat eine gültige Schätzung abgegeben.");
         updateDisplays();saveState();
-        Bukkit.getScheduler().runTaskLater(this,()->nextEstimate(gen),100L);
+        // Halte die Auflösung lange sichtbar, damit die Teilnehmer kurz durchatmen können.
+        Bukkit.getScheduler().runTaskLater(this,()->{
+            if(gen!=estimateGeneration||!running||game!=5||!estimateRevealing)return;
+            estimateSound(Sound.BLOCK_NOTE_BLOCK_BELL,0.85f);
+            nextEstimate(gen);
+        },ESTIMATE_REVEAL_SECONDS*20L);
     }
     private void loadQuestions() {
         File f=new File(getDataFolder(),"questions.yml");if(!f.exists())saveResource("questions.yml",false);
@@ -525,7 +541,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 if(pts>0){broadcast("§a"+entry.getKey()+" – +"+pts+" Punkt(e)!");quizScores.merge(entry.getKey(),pts,Integer::sum);UUID id=selected.get(entry.getKey());if(id!=null)individual.merge(id,pts,Integer::sum);}
             }
         }
-        if(running)Bukkit.getScheduler().runTaskLater(this,()->{if(running && (game==2||game==5))nextQuestion();},game==2?120L:80L);
+        if(running && game==2)Bukkit.getScheduler().runTaskLater(this,()->{if(running && game==2)nextQuestion();},120L);
         updateDisplays();saveState();
     }
     private void updateDisplays(){
@@ -1094,7 +1110,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     }
                     break;
                 }
-                case "next" -> {if(!running || !List.of(1,2,5).contains(game))break;nextQuestion();return true;}
+                case "next" -> {if(!running || !List.of(1,2).contains(game))break;nextQuestion();return true;}
                 case "finishround" -> {
                     if(game>=1&&game<=5){
                         if(game==1||game==2||game==5)for(String t:teams.keySet())if(participatedInRound(t,game))raw.computeIfAbsent(t,k->new HashMap<>()).put(game,quizScores.getOrDefault(t,0));
