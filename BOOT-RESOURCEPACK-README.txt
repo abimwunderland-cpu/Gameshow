@@ -1,0 +1,1 @@
+Passendes Pack: WolfsfellGameshow-Rennboote-Final-Resourcepack.zip. Dieses Update vergroessert und positioniert die flachen 3D Bootsverkleidungen. Vanilla-Holzboot bleibt. Java Build und Minecraft Test nicht durchgefuehrt.
