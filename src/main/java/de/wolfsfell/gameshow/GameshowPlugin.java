@@ -131,6 +131,10 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         Bukkit.getScheduler().runTaskTimer(this,this::updateDisplays,40L,40L);
         getLogger().info("Wolfsfell Gameshow 0.1 loaded; " + teams.size() + " teams");
     }
+    void completeGameThree(Map<String,Integer> scores){
+        for(var entry:scores.entrySet())raw.computeIfAbsent(entry.getKey(),k->new HashMap<>()).put(3,entry.getValue());
+        running=false;rankRound(Bukkit.getConsoleSender(),3);broadcast("§dSpiel 3 automatisch abgeschlossen.");saveState();
+    }
     @Override public void onDisable() { restoreGame2Inventories();if(gameThree!=null)gameThree.stop();if(clock!=null)clock.cancel(); for(List<UUID> ids:neonEdges.values())for(UUID id:ids){org.bukkit.entity.Entity e=Bukkit.getEntity(id);if(e!=null)e.remove();} saveState(); }
     private String key(Location l) { return l.getWorld().getUID()+":"+l.getBlockX()+":"+l.getBlockY()+":"+l.getBlockZ(); }
     private String team(UUID u) { for(var e:teams.entrySet()) if(e.getValue().contains(u))return e.getKey(); return null; }
@@ -891,7 +895,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             say(sender,"/wg points <Team> | /wg points add <Team> <Zahl> | /wg spend <Team> <Kosten> <Notiz>");return true;
         }
         String cmd=args[0].toLowerCase(Locale.ROOT);
-        if(cmd.equals("game3")&&admin(sender)){if(args.length>=2&&args[1].equalsIgnoreCase("start")){gameThree.start(sender);return true;}if(args.length>=2&&args[1].equalsIgnoreCase("stop")){gameThree.stop();say(sender,"Rennen gestoppt.");return true;}say(sender,"/wg game3 start|stop");return true;}
+        if(cmd.equals("game3")&&admin(sender)){if(args.length>=2&&args[1].equalsIgnoreCase("start")){gameThree.start(sender);return true;}if(args.length>=2&&args[1].equalsIgnoreCase("stop")){gameThree.stop();say(sender,"Rennen gestoppt.");return true;}if(args.length>=2&&args[1].equalsIgnoreCase("debug")){gameThree.toggleDebug(sender);return true;}if(args.length>=3&&args[1].equalsIgnoreCase("laps")){try{gameThree.setLaps(sender,Integer.parseInt(args[2]));}catch(NumberFormatException ex){say(sender,"/wg game3 laps <1-20>");}return true;}say(sender,"/wg game3 start|stop|debug|laps <1-20>");return true;}
         if(cmd.equals("screen")&&admin(sender)) {
             if(!(sender instanceof Player p))return true;
             if(args.length>=2 && args[1].equalsIgnoreCase("remove")){
@@ -1110,7 +1114,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
         if(args.length==1)return Arrays.stream(new String[]{"screen","game3","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
-        if(args.length==2&&args[0].equalsIgnoreCase("game3"))return List.of("start","stop");
+        if(args.length==2&&args[0].equalsIgnoreCase("game3"))return List.of("start","stop","debug","laps");
         if(args.length==2&&args[0].equalsIgnoreCase("screen"))return List.of("set","test","remove","idle");
         if(args.length==2&&args[0].equalsIgnoreCase("candidate"))return List.of("set");
         if(args.length==3&&args[0].equalsIgnoreCase("candidate")&&args[1].equalsIgnoreCase("set"))
