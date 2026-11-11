@@ -40,6 +40,7 @@ final class GameOneScreen {
     int stage(){return Math.max(1,Math.min(7,phase+1));}
     int points(){return 8-stage();}
     void load(){
+        frames.clear();views.clear();
         File file=new File(plugin.getDataFolder(),"wide-screen.yml");
         if(!file.exists())return;
         YamlConfiguration y=YamlConfiguration.loadConfiguration(file);
