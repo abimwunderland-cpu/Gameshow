@@ -63,8 +63,8 @@ final class GameThreeRace implements Listener {
         String c=switch(color){case "RED", "DARK_RED"->"red";case "BLUE", "DARK_BLUE"->"blue";case "GREEN", "DARK_GREEN"->"green";case "YELLOW", "GOLD"->"yellow";case "ORANGE"->"orange";case "LIGHT_PURPLE", "PINK"->"pink";case "AQUA", "DARK_AQUA", "CYAN"->"cyan";case "WHITE"->"white";default->"purple";};
         ItemStack item=new ItemStack(Material.PAPER);
         ItemMeta meta=item.getItemMeta();meta.setItemModel(new NamespacedKey("wolfsfell","race_boat_"+c));item.setItemMeta(meta);
-        Location loc=boat.getLocation().clone().add(0,0.28,0);
-        ItemDisplay display=boat.getWorld().spawn(loc,ItemDisplay.class,d->{d.setItemStack(item);d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);d.setPersistent(false);d.addScoreboardTag("wg_game3_hull");d.setInterpolationDuration(2);d.setTeleportDuration(1);});
+        Location loc=boat.getLocation().clone().add(0,0.12,0);
+        ItemDisplay display=boat.getWorld().spawn(loc,ItemDisplay.class,d->{d.setItemStack(item);d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);d.setPersistent(false);d.addScoreboardTag("wg_game3_hull");d.setInterpolationDuration(2);d.setTeleportDuration(1);d.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(0f,-0.18f,0f),new org.joml.Quaternionf(),new org.joml.Vector3f(0.55f,0.25f,0.65f),new org.joml.Quaternionf()));});
         hullDisplays.put(boat.getUniqueId(),display.getUniqueId());
     }
     private void startHullUpdater(){
@@ -73,7 +73,7 @@ final class GameThreeRace implements Listener {
             for(var e:hullDisplays.entrySet()){
                 Entity be=Bukkit.getEntity(e.getKey()), de=Bukkit.getEntity(e.getValue());
                 if(!(be instanceof Boat boat)||!(de instanceof ItemDisplay display))continue;
-                Location at=boat.getLocation().clone().add(0,0.28,0);
+                Location at=boat.getLocation().clone().add(0,0.12,0);
                 display.teleport(at);
             }
         },1L,1L);
@@ -93,11 +93,11 @@ final class GameThreeRace implements Listener {
     /** 2D intersection of the boat's movement segment with a marked finite line. */
     private boolean crosses(Location from,Location to,Location a,Location b){
         if(a==null||b==null||from==null||to==null||!from.getWorld().equals(a.getWorld())||!to.getWorld().equals(a.getWorld()))return false;
-        if(Math.abs(to.getY()-a.getY())>3||Math.abs(from.getY()-a.getY())>3)return false;
+        if(Math.abs(to.getY()-a.getY())>6||Math.abs(from.getY()-a.getY())>6)return false;
         double rx=to.getX()-from.getX(),rz=to.getZ()-from.getZ(),sx=b.getX()-a.getX(),sz=b.getZ()-a.getZ();
         double det=rx*sz-rz*sx;if(Math.abs(det)<1e-8)return false;
         double qx=a.getX()-from.getX(),qz=a.getZ()-from.getZ();double t=(qx*sz-qz*sx)/det,u=(qx*rz-qz*rx)/det;
-        return t>=0&&t<=1&&u>=0&&u<=1;
+        return t>=0&&t<=1&&u>=-0.10&&u<=1.10;
     }
     private void checkLines(Player p,Location from,Location to){
         UUID id=p.getUniqueId();if(finished.contains(id))return;
@@ -105,21 +105,33 @@ final class GameThreeRace implements Listener {
         if(now-lastLapCross.getOrDefault(id,0L)<900)return;
         if(ph==0&&crosses(from,to,startA,startB)){
             phase.put(id,1);lapStart.put(id,now);lastLapCross.put(id,now);
-            if(debug)p.sendMessage("§a[DEBUG] START erkannt → Checkpoint suchen");
+            p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_PLING,0.9f,1.1f);if(debug)p.sendMessage("§a[DEBUG] START erkannt → Checkpoint suchen");
         }else if(ph==1&&crosses(from,to,checkpointA,checkpointB)){
             phase.put(id,2);lastLapCross.put(id,now);
-            if(debug)p.sendMessage("§a[DEBUG] CHECKPOINT erkannt → Ziel suchen");
+            p.playSound(p.getLocation(),Sound.ENTITY_PLAYER_LEVELUP,0.8f,1.6f);p.sendActionBar("§a§lCHECKPOINT ERREICHT ✓ §7| Weiter zum Ziel!");p.sendMessage("§a[WG Rennen] §fCheckpoint erreicht! §7Runde "+(laps.getOrDefault(id,0)+1)+"/"+targetLaps);if(debug)p.sendMessage("§a[DEBUG] CHECKPOINT erkannt → Ziel suchen");
         }else if(ph==2&&crosses(from,to,finishA,finishB)){
             int lap=laps.merge(id,1,Integer::sum);long lapTime=now-lapStart.getOrDefault(id,startMillis);
             lastLapCross.put(id,now);
-            all("§d"+p.getName()+" §fhat Runde §e"+lap+"/"+targetLaps+" §fgeschafft! §bRundenzeit: "+format(lapTime)+" §7| Gesamt: "+format(now-startMillis));
+            all("§d"+p.getName()+" §fhat Runde §e"+lap+"/"+targetLaps+" §fgeschafft! §bRundenzeit: "+format(lapTime)+" §7| Gesamt: "+format(now-startMillis));p.playSound(p.getLocation(),Sound.UI_TOAST_CHALLENGE_COMPLETE,0.8f,1.2f);
             if(lap>=targetLaps){finishes.put(id,now);finished.add(id);int place=finishes.size();all("§a"+p.getName()+" §fim Ziel! §ePlatz "+place+" §7("+format(now-startMillis)+")");p.sendTitle("§aZIEL!","§ePlatz "+place,5,50,10);removeDriverBoat(id);if(spectator!=null)p.teleport(spectator);spectators.add(id);if(finishes.size()==assigned.size())complete();}
             else {phase.put(id,0);p.sendTitle("§eRUNDE "+(lap+1)+"/"+targetLaps,"§fZur Startlinie fahren!",5,35,10);}
         }else if(debug&&crosses(from,to,finishA,finishB))p.sendMessage("§c[DEBUG] ZIEL ungueltig: "+phaseName(ph));
     }
     private void removeDriverBoat(UUID id){UUID bid=boats.remove(id);if(bid==null)return;UUID did=hullDisplays.remove(bid);Entity display=did==null?null:Bukkit.getEntity(did);if(display!=null)display.remove();Entity boat=Bukkit.getEntity(bid);if(boat!=null)boat.remove();}
     private void complete(){if(completed)return;completed=true;racing=false;if(timer!=null){timer.cancel();timer=null;}all("§dRennen beendet! §fErgebnisse werden automatisch gewertet.");plugin.completeGameThree(results());for(UUID id:assigned.values()){Player p=Bukkit.getPlayer(id);if(p!=null&&spectator!=null){p.teleport(spectator);spectators.add(id);}}stop();}
-    @EventHandler public void vehicleMove(VehicleMoveEvent e){if(!(e.getVehicle() instanceof Boat b)||!b.getScoreboardTags().contains("wg_game3_boat"))return;if(racing){if(!b.getPassengers().isEmpty()&&b.getPassengers().get(0) instanceof Player p&&assigned.containsValue(p.getUniqueId()))/* handled by vehicle movement */return;}if(e.getFrom().distanceSquared(e.getTo())>0.0001){b.setVelocity(new Vector(0,0,0));b.teleport(e.getFrom());}}
+    @EventHandler public void vehicleMove(VehicleMoveEvent e){
+        if(!(e.getVehicle() instanceof Boat b)||!b.getScoreboardTags().contains("wg_game3_boat"))return;
+        if(racing){
+            for(Entity passenger:b.getPassengers()){
+                if(passenger instanceof Player p && assigned.containsValue(p.getUniqueId()) && Objects.equals(boats.get(p.getUniqueId()),b.getUniqueId())){
+                    checkLines(p,e.getFrom(),e.getTo());
+                    return;
+                }
+            }
+            return;
+        }
+        if(e.getFrom().distanceSquared(e.getTo())>0.0001){b.setVelocity(new Vector(0,0,0));b.teleport(e.getFrom());}
+    }
     @EventHandler public void damage(VehicleDamageEvent e){if(e.getVehicle().getScoreboardTags().contains("wg_game3_boat"))e.setCancelled(true);}
     @EventHandler public void destroy(VehicleDestroyEvent e){if(e.getVehicle().getScoreboardTags().contains("wg_game3_boat"))e.setCancelled(true);}
     @EventHandler public void enter(VehicleEnterEvent e){if(!(e.getVehicle() instanceof Boat b)||!b.getScoreboardTags().contains("wg_game3_boat")||!(e.getEntered() instanceof Player p))return;if(!Objects.equals(boats.get(p.getUniqueId()),b.getUniqueId())){e.setCancelled(true);p.sendMessage("§cDas ist nicht dein Teamboot!");}}
