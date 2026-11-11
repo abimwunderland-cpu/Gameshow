@@ -29,6 +29,9 @@ final class GameOneScreen {
     private BufferedImage source, display;
     private String current="";
     private boolean quiz2=false;
+    private boolean estimateMode=false,estimateTest=false;
+    private String estimatePrompt="";private Integer estimateAnswer=null;
+    private int estimateNumber,estimateSeconds,estimateCount,estimateTotal;
     private String quiz2Prompt="",quiz2Correct=null;
     private String[] quiz2Choices=new String[4];
     private int quiz2Number,quiz2Seconds,quiz2Count,quiz2Total;
@@ -139,7 +142,7 @@ final class GameOneScreen {
         if(file.exists()&&!file.delete())plugin.getLogger().warning("Could not delete wide-screen.yml");
         return removed;
     }
-    void idle(){quiz2=false;active=false;frozen=false;phase=-1;source=null;current="";lastSignature="";render();}
+    void idle(){estimateMode=false;quiz2=false;active=false;frozen=false;phase=-1;source=null;current="";lastSignature="";render();}
     void show(String answer){
         current=answer;phase=-1;frozen=false;active=true;lastChange=0;
         try(var stream=plugin.getResource("game1/"+answer+".png")){
@@ -153,7 +156,11 @@ final class GameOneScreen {
     void reveal(){phase=7;render();}
     void advance(){if(!active||source==null||frozen)return;long now=System.currentTimeMillis();if(phase>=6||now-lastChange<4000)return;lastChange=now;phase++;render();}
     void showQuiz2(int number,String prompt,String[] options,int seconds,int count,int total,String correct){
-        quiz2=true;active=false;quiz2Number=number;quiz2Prompt=prompt;quiz2Choices=options.clone();quiz2Seconds=seconds;quiz2Count=count;quiz2Total=total;quiz2Correct=correct;render();
+        estimateMode=false;quiz2=true;active=false;quiz2Number=number;quiz2Prompt=prompt;quiz2Choices=options.clone();quiz2Seconds=seconds;quiz2Count=count;quiz2Total=total;quiz2Correct=correct;render();
+    }
+    void showEstimate(int number,boolean test,String prompt,int seconds,int count,int total,Integer answer){
+        estimateMode=true;quiz2=false;active=false;estimateNumber=number;estimateTest=test;
+        estimatePrompt=prompt;estimateSeconds=seconds;estimateCount=count;estimateTotal=total;estimateAnswer=answer;render();
     }
     private void centered(Graphics2D g,String value,int y,int maxWidth,int maxSize,Color color){
         int size=maxSize;while(size>24){g.setFont(new Font("SansSerif",Font.BOLD,size));if(g.getFontMetrics().stringWidth(value)<=maxWidth)break;size-=2;}
@@ -207,7 +214,18 @@ final class GameOneScreen {
         int cx=leftWidth,cy=0,centerWidth=9*TILE;
         g.setColor(new java.awt.Color(36,26,58));g.fillRect(cx,cy,centerWidth,HEIGHT);
         g.setColor(new java.awt.Color(162,93,240));g.setStroke(new BasicStroke(8));g.drawRect(cx+12,12,centerWidth-24,HEIGHT-24);
-        if(quiz2){
+        if(estimateMode){
+            centered(g,estimateTest?"TESTRUNDE "+estimateNumber+" / 2":"FRAGE "+(estimateNumber-2)+" / 10",125,1000,64,Color.WHITE);
+            centered(g,estimateAnswer==null?"NOCH "+estimateSeconds+" SEKUNDEN":"RICHTIGE ANTWORT",235,1000,61,new Color(255,213,109));
+            String[] words=estimatePrompt.split(" ");StringBuilder line=new StringBuilder();int y=370;
+            for(String word:words){String trial=line.length()==0?word:line+" "+word;
+                if(trial.length()>30&&line.length()>0){centered(g,line.toString(),y,1030,48,Color.WHITE);y+=70;line=new StringBuilder(word);}else line=new StringBuilder(trial);
+            }
+            if(line.length()>0)centered(g,line.toString(),y,1030,48,Color.WHITE);
+            if(estimateAnswer!=null)centered(g,String.valueOf(estimateAnswer),790,1000,110,new Color(110,240,157));
+            else centered(g,"ZAHL GEHEIM IN DEN CHAT!",790,1000,45,new Color(219,184,255));
+            centered(g,estimateCount+" / "+estimateTotal+" ANTWORTEN",HEIGHT-75,1050,45,new Color(219,184,255));
+        }else if(quiz2){
             centered(g,"FRAGE "+quiz2Number+" / 15",105,1000,62,Color.WHITE);
             centered(g,quiz2Correct==null?"ZEIT: "+quiz2Seconds+"s":"AUFLOESUNG",180,1000,64,new Color(255,213,109));
             String[] words=quiz2Prompt.split(" ");StringBuilder line=new StringBuilder();int y=275;

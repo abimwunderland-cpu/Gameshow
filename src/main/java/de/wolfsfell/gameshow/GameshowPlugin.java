@@ -85,6 +85,11 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private String game2Right="";
     private int game2LastSecond=-1;
     private final Map<String,Integer> estimates = new HashMap<>();
+    private final List<EstimateQuestion> estimateBank=new ArrayList<>();
+    private final List<EstimateQuestion> estimateSequence=new ArrayList<>();
+    private boolean estimateAccepting=false, estimateRevealing=false;
+    private int estimateGeneration=0;
+    private record EstimateQuestion(String difficulty,String prompt,int answer) {}
     private final Map<String,Integer> archeryHits = new HashMap<>();
     private GameFourTarget gameFour;
     private final Map<String,Set<String>> archeryTargets = new HashMap<>();
@@ -124,6 +129,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         Objects.requireNonNull(getCommand("wg")).setExecutor(this);
         Objects.requireNonNull(getCommand("wg")).setTabCompleter(this);
         loadQuestions();
+        loadEstimateQuestions();
         // Game 1 images are loaded from resources/game1; no unrelated question entries.
         for(String answer:GAME1_ITEMS)questions.add(new QuizQuestion(1,"Errate das Minecraft-Item auf dem Bildschirm!",answer,new String[0]));
         Bukkit.getScheduler().runTaskLater(this, gameOneScreen::load, 40L);
@@ -287,10 +293,12 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         UUID captain=selected.entrySet().stream().filter(entry->entry.getKey().equalsIgnoreCase(t)).map(Map.Entry::getValue).findFirst().orElse(null);
         if(!Objects.equals(captain,p.getUniqueId()))return;
         if(game==1 && (!p.getUniqueId().equals(buzzed) || System.currentTimeMillis()>buzzDeadline))return;
+        if(game==5 && (!estimateAccepting || System.currentTimeMillis()>=answerDeadline))return;
         if(game!=1 && answerDeadline==0)return;
         String msg=e.getMessage().trim();e.setCancelled(true);
         Bukkit.getScheduler().runTask(this,()->{
             if(!running)return;
+            if(game==5 && (!estimateAccepting || System.currentTimeMillis()>=answerDeadline))return;
             if(game==1){
                 if(!p.getUniqueId().equals(buzzed) || System.currentTimeMillis()>buzzDeadline)return;
                 if(msg.equalsIgnoreCase(correctAnswer)){
@@ -304,7 +312,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 if(!List.of("A","B","C","D").contains(v)){say(p,"Antworte mit A, B, C oder D.");return;}
                 responses.putIfAbsent(t,v);say(p,"Antwort "+v+" gespeichert.");
             }else{
-                try{int n=Integer.parseInt(msg);estimates.putIfAbsent(t,n);say(p,"Schätzung gespeichert.");}
+                try{int n=Integer.parseInt(msg);estimates.put(t,n);say(p,"§aDeine geheime Schätzung: §f"+n);}
                 catch(NumberFormatException x){say(p,"Bitte eine ganze Zahl schreiben.");}
             }
         });
@@ -380,6 +388,76 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     @EventHandler public void onGame2Drag(InventoryDragEvent e){if(e.getWhoClicked() instanceof Player p && isGame2Candidate(p))e.setCancelled(true);}
     @EventHandler public void onGame2Drop(PlayerDropItemEvent e){if(isGame2Candidate(e.getPlayer()))e.setCancelled(true);}
 
+    private void loadEstimateQuestions(){
+        estimateBank.clear();
+        File f=new File(getDataFolder(),"questions-game5.yml");
+        if(!f.exists())saveResource("questions-game5.yml",false);
+        YamlConfiguration y=YamlConfiguration.loadConfiguration(f);
+        for(Map<?,?> row:y.getMapList("questions"))try{
+            String difficulty=String.valueOf(row.get("difficulty")).toLowerCase(Locale.ROOT);
+            String prompt=String.valueOf(row.get("question"));
+            int answer=Integer.parseInt(String.valueOf(row.get("answer")));
+            if(Set.of("test","medium","hard","expert").contains(difficulty) && !prompt.isBlank())estimateBank.add(new EstimateQuestion(difficulty,prompt,answer));
+        }catch(Exception ex){getLogger().warning("Game 5: invalid question: "+ex.getMessage());}
+        getLogger().info("Game 5: "+estimateBank.size()+" questions loaded");
+    }
+    private void startEstimates(CommandSender sender){
+        if(selected.isEmpty()){say(sender,"Game 5: Keine Kandidaten ausgewählt. /wg candidate set <Team> <Spieler>");return;}
+        for(UUID id:selected.values())if(Bukkit.getPlayer(id)==null){say(sender,"Game 5: Alle ausgewählten Kandidaten müssen online sein.");return;}
+        loadEstimateQuestions();
+        estimateSequence.clear();
+        for(String level:List.of("test","medium","hard","expert")){
+            List<EstimateQuestion> pool=new ArrayList<>();for(EstimateQuestion q:estimateBank)if(q.difficulty().equals(level))pool.add(q);
+            Collections.shuffle(pool,random);
+            int needed=level.equals("test")?2:level.equals("medium")?3:level.equals("hard")?4:3;
+            if(pool.size()<needed){say(sender,"Game 5: Zu wenige Fragen in Kategorie "+level+" (benötigt: "+needed+").");return;}
+            estimateSequence.addAll(pool.subList(0,needed));
+        }
+        estimateGeneration++;running=true;game=5;questionNumber=0;quizScores.clear();estimates.clear();
+        selectionEnabled=false;estimateAccepting=false;estimateRevealing=false;answerDeadline=0;
+        startMillis=System.currentTimeMillis();broadcast("§dSCHÄTZ MAL! §72 Proberunden ohne Punkte, dann 10 Wertungsfragen!");
+        int gen=estimateGeneration;Bukkit.getScheduler().runTaskLater(this,()->nextEstimate(gen),40L);saveState();
+    }
+    private void nextEstimate(int gen){
+        if(gen!=estimateGeneration||!running||game!=5)return;
+        if(questionNumber>=estimateSequence.size()){
+            estimateAccepting=false;estimateRevealing=false;answerDeadline=0;running=false;
+            gameOneScreen.idle();
+            for(var entry:quizScores.entrySet())raw.computeIfAbsent(entry.getKey(),k->new HashMap<>()).put(5,entry.getValue());
+            rankRound(Bukkit.getConsoleSender(),5);broadcast("§dSchätz mal beendet! 10 Wertungsfragen ausgewertet.");saveState();return;
+        }
+        EstimateQuestion q=estimateSequence.get(questionNumber++);estimates.clear();
+        currentPrompt=q.prompt();correctAnswer=Integer.toString(q.answer());
+        estimateAccepting=true;estimateRevealing=false;answerDeadline=System.currentTimeMillis()+6000L;
+        boolean test=questionNumber<=2;
+        broadcast("§d"+(test?"TESTFRAGE "+questionNumber+"/2":"FRAGE "+(questionNumber-2)+"/10")+" §f"+currentPrompt);
+        broadcast("§7Ausgewählte Kandidaten: 6 Sekunden! Antworten sind geheim.");
+        for(int sec=6;sec>=1;sec--){final int remaining=sec;Bukkit.getScheduler().runTaskLater(this,()->{
+            if(gen==estimateGeneration&&running&&game==5&&estimateAccepting)gameOneScreen.showEstimate(questionNumber,test,currentPrompt,remaining,estimates.size(),selected.size(),null);
+        },(6-sec)*20L);}
+        Bukkit.getScheduler().runTaskLater(this,()->resolveEstimate(gen,q,test),120L);
+    }
+    private void resolveEstimate(int gen,EstimateQuestion q,boolean test){
+        if(gen!=estimateGeneration||!running||game!=5)return;
+        estimateAccepting=false;estimateRevealing=true;answerDeadline=0;
+        gameOneScreen.showEstimate(questionNumber,test,q.prompt(),0,estimates.size(),selected.size(),q.answer());
+        broadcast("§aRICHTIGE ANTWORT: §f"+q.answer()+(test?" §7(Test – keine Punkte)":""));
+        TreeMap<Long,List<String>> groups=new TreeMap<>();
+        for(var entry:estimates.entrySet())groups.computeIfAbsent(Math.abs((long)entry.getValue()-q.answer()),k->new ArrayList<>()).add(entry.getKey());
+        int rank=0;
+        for(var group:groups.entrySet()){
+            int base=rank==0?2:rank==1?1:0;
+            for(String team:group.getValue()){
+                int value=estimates.get(team);int pts=test?0:base+(value==q.answer()?1:0);
+                broadcast("§7"+team+" §f"+value+" §8(Abstand "+group.getKey()+")"+(pts>0?" §a+"+pts+"P":""));
+                if(pts>0){quizScores.merge(team,pts,Integer::sum);UUID id=selected.get(team);if(id!=null)individual.merge(id,pts,Integer::sum);}
+            }
+            rank++;
+        }
+        if(groups.isEmpty())broadcast("§7Niemand hat eine gültige Schätzung abgegeben.");
+        updateDisplays();saveState();
+        Bukkit.getScheduler().runTaskLater(this,()->nextEstimate(gen),100L);
+    }
     private void loadQuestions() {
         File f=new File(getDataFolder(),"questions.yml");if(!f.exists())saveResource("questions.yml",false);
         YamlConfiguration y=YamlConfiguration.loadConfiguration(f);
@@ -896,9 +974,11 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             say(sender,"/wg basket <Team> <0-6> | /wg parkour finish | /wg chest add|clear|shuffle|stop");
             say(sender,"GAME 3: /wg wand game3 | /wg tp game 3 | /wg game3 start|stop | /wg screen idle");
             say(sender,"GAME 4: /wg wand game4 | /wg game4 spectator | /wg tp game 4 | /wg game4 start|stop|reset");
+            say(sender,"GAME 5: /wg game5 start|stop|reload|skip");
             say(sender,"/wg points <Team> | /wg points add <Team> <Zahl> | /wg spend <Team> <Kosten> <Notiz>");return true;
         }
         String cmd=args[0].toLowerCase(Locale.ROOT);
+        if(cmd.equals("game5")&&admin(sender)){if(args.length>=2){switch(args[1].toLowerCase(Locale.ROOT)){case "start"->{startEstimates(sender);return true;}case "stop"->{estimateGeneration++;estimateAccepting=false;answerDeadline=0;running=false;gameOneScreen.idle();say(sender,"Schätz mal gestoppt.");return true;}case "reload"->{loadEstimateQuestions();say(sender,"Game-5-Fragen neu geladen: "+estimateBank.size());return true;}case "skip"->{if(game==5&&running){estimateGeneration++;int gen=estimateGeneration;estimateAccepting=false;answerDeadline=0;Bukkit.getScheduler().runTaskLater(this,()->nextEstimate(gen),10L);}return true;}}}say(sender,"/wg game5 start|stop|reload|skip");return true;}
         if(cmd.equals("game4")&&admin(sender)){if(args.length>=2&&(args[1].equalsIgnoreCase("line1")||args[1].equalsIgnoreCase("line2"))){if(sender instanceof Player p)gameFour.line(p,args[1].equalsIgnoreCase("line1")?1:2);else say(sender,"Nur ingame möglich.");return true;}if(args.length>=2&&args[1].equalsIgnoreCase("spectator")){if(sender instanceof Player p)gameFour.spectator(p);else say(sender,"Nur ingame möglich.");return true;}if(args.length>=2){switch(args[1].toLowerCase(Locale.ROOT)){case "start" -> {game=4;archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();saveState();}return true;}case "stop" -> {gameFour.stop();running=false;return true;}case "reset" -> {gameFour.reset();archeryHits.clear();return true;}}}say(sender,"/wg game4 spectator|line1|line2|start|stop|reset");return true;}
         if(cmd.equals("game3")&&admin(sender)){if(args.length>=2&&args[1].equalsIgnoreCase("start")){gameThree.start(sender);return true;}if(args.length>=2&&args[1].equalsIgnoreCase("stop")){gameThree.stop();say(sender,"Rennen gestoppt.");return true;}if(args.length>=2&&args[1].equalsIgnoreCase("debug")){gameThree.toggleDebug(sender);return true;}if(args.length>=3&&args[1].equalsIgnoreCase("laps")){try{gameThree.setLaps(sender,Integer.parseInt(args[2]));}catch(NumberFormatException ex){say(sender,"/wg game3 laps <1-20>");}return true;}say(sender,"/wg game3 start|stop|debug|laps <1-20>");return true;}
         if(cmd.equals("screen")&&admin(sender)) {
@@ -1070,13 +1150,13 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     if(enable){selected.clear();}
                     else {returnUnselectedToCages();studioLocked=true;}
                     saveState();say(sender,"Spielerwahl "+(selectionEnabled?"aktiv":"aus"));return true;}
-                case "game" -> {if(game==4)gameFour.stop();if(game==3)gameThree.stop();if(game==2)restoreGame2Inventories();if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;if(game==g){say(sender,"Spiel "+g+" ist bereits gewählt. Kandidaten bleiben erhalten ("+selected.size()+" registriert).");return true;}running=false;game=g;selected.clear();selectionTicks.clear();buzzed=null;attemptedBuzzers.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]+". Kandidaten für das neue Spiel neu wählen.");saveState();return true;}
-                case "start" -> {if(game==3){gameThree.start(sender);return true;}if(game==4){archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();broadcast("§dSTART: "+GAMES[game-1]);saveState();}return true;}if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;if(game==1||game==2){teleportCandidatesToSelection();}if(game==2){prepareGame2Inventories();}if(game==1){say(sender,"Game 1 startet mit "+selected.size()+" registrierten Kandidaten. /wg candidates zeigt die Zuordnung.");if(selected.isEmpty())say(sender,"ACHTUNG: Keine Kandidaten gewählt! Bitte /wg candidate set <Team> <Spieler> nutzen.");}
+                case "game" -> {estimateGeneration++;estimateAccepting=false;answerDeadline=0;if(game==4)gameFour.stop();if(game==3)gameThree.stop();if(game==2)restoreGame2Inventories();if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;if(game==g){say(sender,"Spiel "+g+" ist bereits gewählt. Kandidaten bleiben erhalten ("+selected.size()+" registriert).");return true;}running=false;game=g;selected.clear();selectionTicks.clear();buzzed=null;attemptedBuzzers.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]+". Kandidaten für das neue Spiel neu wählen.");saveState();return true;}
+                case "start" -> {if(game==5){startEstimates(sender);return true;}if(game==3){gameThree.start(sender);return true;}if(game==4){archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();broadcast("§dSTART: "+GAMES[game-1]);saveState();}return true;}if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;if(game==1||game==2){teleportCandidatesToSelection();}if(game==2){prepareGame2Inventories();}if(game==1){say(sender,"Game 1 startet mit "+selected.size()+" registrierten Kandidaten. /wg candidates zeigt die Zuordnung.");if(selected.isEmpty())say(sender,"ACHTUNG: Keine Kandidaten gewählt! Bitte /wg candidate set <Team> <Spieler> nutzen.");}
                     if(game==1||game==2||game==5){game1QuestionActive=false;quizScores.clear();usedQuestions.clear();questionNumber=0;gameOneScreen.idle();Bukkit.getScheduler().runTaskLater(this,this::nextQuestion,30L);}
                     if(game==3){raceProgress.clear();raceFinishes.clear();}
                     if(game==4){archeryHits.clear();archeryFinishTimes.clear();}
                     broadcast("§dSTART: "+GAMES[game-1]);saveState();return true;}
-                case "stop" -> {if(game==4)gameFour.stop();if(game==3){gameThree.stop();running=false;gameOneScreen.idle();say(sender,"Rennen gestoppt.");return true;}if(game==2){game2Accepting=false;game2Revealing=false;answerDeadline=0;restoreGame2Inventories();}if(game==7&&running){stopParkour();return true;}if(game==8&&running){finishMystery();return true;}running=false;gameOneScreen.idle();broadcast("Spiel gestoppt.");saveState();return true;}
+                case "stop" -> {if(game==5){estimateGeneration++;estimateAccepting=false;answerDeadline=0;}if(game==4)gameFour.stop();if(game==3){gameThree.stop();running=false;gameOneScreen.idle();say(sender,"Rennen gestoppt.");return true;}if(game==2){game2Accepting=false;game2Revealing=false;answerDeadline=0;restoreGame2Inventories();}if(game==7&&running){stopParkour();return true;}if(game==8&&running){finishMystery();return true;}running=false;gameOneScreen.idle();broadcast("Spiel gestoppt.");saveState();return true;}
                 case "raw" -> {if(args.length<4)break;String t=args[1];int n=Integer.parseInt(args[2]),v=Integer.parseInt(args[3]);if(!teams.containsKey(t)||n<1||n>5)break;raw.computeIfAbsent(t,k->new HashMap<>()).put(n,v);say(sender,"Rohwertung "+t+" Spiel "+n+" = "+v);rankRound(sender,n);return true;}
                 case "rank" -> {rankRound(sender,5);return true;}
                 case "qualify" -> {finalizeTeams(sender);return true;}
@@ -1119,7 +1199,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         say(p,"Gekauft: "+item+" für "+cost+" Punkte. Rest: "+advantages.get(t));p.playSound(p.getLocation(),"wolfsfell.purchase",1f,1f);saveState();
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
-        if(args.length==1)return Arrays.stream(new String[]{"screen","game3","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==1)return Arrays.stream(new String[]{"screen","game3","game5","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         if(args.length==2&&args[0].equalsIgnoreCase("game3"))return List.of("start","stop","debug","laps");
         if(args.length==2&&args[0].equalsIgnoreCase("screen"))return List.of("set","test","remove","idle");
         if(args.length==2&&args[0].equalsIgnoreCase("candidate"))return List.of("set");
