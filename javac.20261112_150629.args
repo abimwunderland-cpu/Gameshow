@@ -1,0 +1,9 @@
+-Xmaxerrs
+500
+-d
+/tmp/game9javacheck
+src/main/java/de/wolfsfell/gameshow/GameFourTarget.java
+src/main/java/de/wolfsfell/gameshow/GameNineUhc.java
+src/main/java/de/wolfsfell/gameshow/GameOneScreen.java
+src/main/java/de/wolfsfell/gameshow/GameThreeRace.java
+src/main/java/de/wolfsfell/gameshow/GameshowPlugin.java

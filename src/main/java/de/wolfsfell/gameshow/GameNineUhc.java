@@ -30,6 +30,8 @@ final class GameNineUhc implements Listener {
     private boolean prepared, active, finished;
     private int sequence;
     private String winner;
+    private Boolean previousPvp;
+    private World pvpWorld;
 
     private record SavedPlayer(ItemStack[] storage, ItemStack[] armor, ItemStack offhand,
                                GameMode mode, double health, int food, float saturation,
@@ -51,7 +53,8 @@ final class GameNineUhc implements Listener {
         Location a=point("corner-a"),b=point("corner-b"),x=point("spawn1"),y=point("spawn2"),z=point("spectator");
         if(a==null||b==null||x==null||y==null||z==null){tell(s,"Setup fehlt: /wg wand game9 (2 Ecken) und /wg set game9-spawn1, game9-spawn2, game9-spectator.");return false;}
         if(!a.getWorld().equals(b.getWorld())||!inside(x)||!inside(y)){tell(s,"Beide Spawns müssen innerhalb der markierten Arena in derselben Welt liegen.");return false;}
-        if(inside(z)){tell(s,"Zuschauertribüne bitte außerhalb der Arena speichern.");return false;}
+        // Barrier observation platforms may be directly above the arena.
+        if(z.getWorld()==null){tell(s,"Ungültiger Zuschauerpunkt.");return false;}
         if(!plugin.uhcFinaleStarted()||plugin.uhcFinalists().size()!=2){tell(s,"Zuerst /wg finishround nach Spiel 5 durchführen.");return false;}
         return true;
     }
@@ -90,6 +93,8 @@ final class GameNineUhc implements Listener {
         cleanup();backups.clear();fighters.clear();fighterSpawns.clear();
         prepared=true;active=false;finished=false;winner=null;int run=++sequence;
         plugin.uhcBegin();
+        pvpWorld=point("spawn1").getWorld();previousPvp=pvpWorld.getPVP();
+        pvpWorld.setPVP(true);
         for(int i=0;i<duel.size();i++){
             Player p=duel.get(i);fighters.add(p.getUniqueId());
             PlayerInventory inv=p.getInventory();
@@ -146,7 +151,7 @@ final class GameNineUhc implements Listener {
     }
     void status(CommandSender s){tell(s,"Status: "+(active?"Kampf läuft":prepared?"Countdown":finished?"beendet":"bereit")+" | Sieger: "+(winner==null?"offen":winner)+" | temporäre Blöcke: "+placed.size()+" | Flüssigkeiten: "+fluids.size());}
     void stop(CommandSender s){if(!isActive()){tell(s,"Kein aktiver Kampf.");return;}finish(null);tell(s,"Finale abgebrochen, kein Sieger eingetragen.");}
-    void shutdown(){sequence++;if(countdown!=null)countdown.cancel();cleanup();for(Player p:Bukkit.getOnlinePlayers())restore(p);prepared=false;active=false;}
+    void shutdown(){if(pvpWorld!=null&&previousPvp!=null)pvpWorld.setPVP(previousPvp);sequence++;if(countdown!=null)countdown.cancel();cleanup();for(Player p:Bukkit.getOnlinePlayers())restore(p);prepared=false;active=false;}
     private void restore(Player p){SavedPlayer old=backups.remove(p.getUniqueId());if(old==null)return;
         PlayerInventory inv=p.getInventory();inv.clear();inv.setStorageContents(old.storage());inv.setArmorContents(old.armor());inv.setItemInOffHand(old.offhand());
         p.setGameMode(old.mode());p.setAllowFlight(old.allowFlight());if(old.allowFlight())p.setFlying(old.flying());
@@ -160,7 +165,10 @@ final class GameNineUhc implements Listener {
         Location center=winning==null?null:Bukkit.getPlayer(plugin.uhcSelected(winning))==null?null:Bukkit.getPlayer(plugin.uhcSelected(winning)).getLocation().clone();
         cleanup();
         for(UUID id:fighters){Player p=Bukkit.getPlayer(id);if(p!=null&&!p.isDead())p.setGameMode(GameMode.ADVENTURE);}
+        if(pvpWorld!=null && previousPvp!=null)pvpWorld.setPVP(previousPvp);
+        pvpWorld=null;previousPvp=null;
         plugin.uhcEnd(winning);
+        if(winning!=null)plugin.uhcMarkGameNineCompleted();
         if(winning!=null){
             announce("§6§l"+winning.toUpperCase(Locale.ROOT)+" GEWINNT DIE WOLFSFELL GAMESHOW!");
             for(Player p:Bukkit.getOnlinePlayers()){

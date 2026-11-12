@@ -8,6 +8,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
@@ -53,6 +54,16 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private final Map<UUID, String> wandModes = new HashMap<>();
     private final Map<UUID, Location> pos1 = new HashMap<>(), pos2 = new HashMap<>();
     private final Map<String, Location[]> cages = new HashMap<>();
+    private final Set<Integer> completedGames = new HashSet<>();
+    private UUID gameBoardId;
+    private int cageReturnSequence = 0;
+    private static final String[] GAME_DESCRIPTIONS = {
+        "Erkenne das gezeigte Item.","Wähle die richtige von vier Antworten.",
+        "Fahre als Erster ins Ziel.","Triff zehn Zielblöcke mit dem Bogen.",
+        "Schätze Minecraft-Zahlen möglichst genau.","Antworte, bevor die Zeit ausgeht.",
+        "Erreiche als Erster das Parkour-Ziel.","Öffne Kisten und riskiere Punkte.",
+        "Gewinne das finale Kit-UHC-Duell."
+    };
     private final Map<String, Set<String>> neon = new HashMap<>();
     private final Map<String, UUID> neonDisplays = new HashMap<>();
     private final Map<String, List<UUID>> neonEdges = new HashMap<>();
@@ -157,16 +168,17 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         // Game 1 images are loaded from resources/game1; no unrelated question entries.
         for(String answer:GAME1_ITEMS)questions.add(new QuizQuestion(1,"Errate das Minecraft-Item auf dem Bildschirm!",answer,new String[0]));
         Bukkit.getScheduler().runTaskLater(this, gameOneScreen::load, 40L);
+        Bukkit.getScheduler().runTaskLater(this, this::refreshGameBoard, 60L);
         Bukkit.getScheduler().runTaskLater(this, () -> { clearLegacyNeonDisplays(); restoreRegionNeon(); refreshAllArmor(); refreshBuzzerColors(); }, 20L);
         clock = Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         Bukkit.getScheduler().runTaskTimer(this,this::updateDisplays,40L,40L);
         getLogger().info("Wolfsfell Gameshow 0.1 loaded; " + teams.size() + " teams");
     }
     void gameFourHit(String team,Player player,int hits){archeryHits.put(team,hits);individual.merge(player.getUniqueId(),1,Integer::sum);if(hits==10)archeryFinishTimes.put(team,System.currentTimeMillis());}
-    void gameFourCompleted(){running=false;for(var entry:archeryHits.entrySet())raw.computeIfAbsent(entry.getKey(),k->new HashMap<>()).put(4,entry.getValue());rankRound(Bukkit.getConsoleSender(),4);saveState();broadcast("§dZielwasser beendet! Ergebnisse gespeichert.");}
+    void gameFourCompleted(){running=false;for(var entry:archeryHits.entrySet())raw.computeIfAbsent(entry.getKey(),k->new HashMap<>()).put(4,entry.getValue());rankRound(Bukkit.getConsoleSender(),4);saveState();broadcast("§dZielwasser beendet! Ergebnisse gespeichert.");completeGame(4);}
     void completeGameThree(Map<String,Integer> scores){
         for(var entry:scores.entrySet())raw.computeIfAbsent(entry.getKey(),k->new HashMap<>()).put(3,entry.getValue());
-        running=false;rankRound(Bukkit.getConsoleSender(),3);broadcast("§dSpiel 3 automatisch abgeschlossen.");saveState();
+        running=false;rankRound(Bukkit.getConsoleSender(),3);broadcast("§dSpiel 3 automatisch abgeschlossen.");saveState();completeGame(3);
     }
     @Override public void onDisable() {wordGeneration++;wordAccepting=false; restoreGame2Inventories();if(gameThree!=null)gameThree.stop();if(gameFour!=null)gameFour.stop();if(gameNine!=null)gameNine.shutdown();if(clock!=null)clock.cancel(); for(List<UUID> ids:neonEdges.values())for(UUID id:ids){org.bukkit.entity.Entity e=Bukkit.getEntity(id);if(e!=null)e.remove();} saveState(); }
     private String key(Location l) { return l.getWorld().getUID()+":"+l.getBlockX()+":"+l.getBlockY()+":"+l.getBlockZ(); }
@@ -343,6 +355,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             playFinalSound(Sound.BLOCK_NOTE_BLOCK_BASS,0.65f,0.8f);
         }
         saveState();updateDisplays();
+        if(winner!=null||timeout)completeGame(7);
     }
     private boolean insideHorizontal(Location point,Location a,Location b){
         return point!=null && point.getWorld().equals(a.getWorld()) &&
@@ -452,6 +465,17 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         b.getWorld().spawnParticle(value>=0?Particle.HAPPY_VILLAGER:Particle.SMOKE,b.getLocation().add(.5,1,.5),22,.35,.3,.35);
         playFinalSound(value>0?Sound.ENTITY_EXPERIENCE_ORB_PICKUP:value<0?Sound.BLOCK_NOTE_BLOCK_BASS:Sound.BLOCK_NOTE_BLOCK_PLING,0.75f,value>0?1.3f:value<0?.7f:1f);
         broadcast("§d"+e.getPlayer().getName()+" §7zieht §f"+(value>0?"+":"")+value+" §8| §7"+t+" gesamt: §e"+mysteryScores.get(t));
+        String vColor=value>0?"§a":value<0?"§c":"§f";
+        for(Player viewer:Bukkit.getOnlinePlayers()){
+            viewer.sendTitle(vColor+"§l"+(value>=0?"+":"")+value,"§7"+e.getPlayer().getName()+" §8| §f"+t,0,32,8);
+        }
+        b.getWorld().spawn(b.getLocation().add(.5,1.4,.5),TextDisplay.class,display->{
+            display.setText(vColor+"§l"+(value>=0?"+":"")+value);
+            display.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+            display.setGlowing(true);
+            display.setGlowColorOverride(value>0?Color.LIME:value<0?Color.RED:Color.WHITE);
+            Bukkit.getScheduler().runTaskLater(this,display::remove,45L);
+        });
         if(openedChests.size()>=50){finishMystery(false);return;}
         mysteryTurn=(mysteryTurn+1)%2;announceMysteryTurn();saveState();
     }
@@ -467,7 +491,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         for(String t:winners)if(potionRewards.add(t))advantages.merge(t,1,Integer::sum);
         broadcast("§d§lMYSTERY-CHESTS ENDE! §f"+finalists.get(0)+" §7"+a+" Punkte §8| §f"+finalists.get(1)+" §7"+b+" Punkte");
         broadcast("§a§lVORTEIL: §f"+String.join(" & ",winners)+" §7erhält 3 Heilungstränke für KitUHC"+(winners.size()==2?" (Gleichstand)":"")+"!");
-        playFinalSound(Sound.UI_TOAST_CHALLENGE_COMPLETE,0.85f,1.15f);saveState();updateDisplays();
+        playFinalSound(Sound.UI_TOAST_CHALLENGE_COMPLETE,0.85f,1.15f);saveState();updateDisplays();completeGame(8);
     }
     @EventHandler public void onJoin(PlayerJoinEvent e) { Bukkit.getScheduler().runTaskLater(this,()->{restoreGame2Inventory(e.getPlayer());updateDisplays();},20); }
     @EventHandler public void onQuit(PlayerQuitEvent e) { if(e.getPlayer().getUniqueId().equals(buzzed))buzzed=null; }
@@ -880,6 +904,65 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
     }
 
+    /** Move everyone back after a completed game, not after a temporary stop or UHC finale. */
+    private void returnEveryoneToCages(){
+        for(Player p:Bukkit.getOnlinePlayers()){
+            String t=team(p.getUniqueId());if(t==null)continue;
+            Location home=locations.get("team:"+t.toLowerCase(Locale.ROOT));
+            if(home==null)home=locations.get("team:"+t);
+            if(home!=null){p.teleport(home.clone());p.setFallDistance(0);}
+        }
+    }
+    void uhcMarkGameNineCompleted(){completeGame(9);}
+    private void completeGame(int number){
+        if(number<1||number>9)return;
+        completedGames.add(number);
+        refreshGameBoard();saveState();
+        if(number==9)return;
+        int version=++cageReturnSequence;
+        Bukkit.getScheduler().runTaskLater(this,()->{
+            if(version!=cageReturnSequence||game==9&&gameNine!=null&&gameNine.isActive())return;
+            returnEveryoneToCages();
+            broadcast("§7Alle Teams sind wieder in ihren Teamkäfigen.");
+        },60L);
+    }
+    private void refreshGameBoard(){
+        Location location=locations.get("gameboard");
+        if(location==null)return;
+        TextDisplay board=null;
+        if(gameBoardId!=null && Bukkit.getEntity(gameBoardId) instanceof TextDisplay display && display.isValid())board=display;
+        if(board==null){
+            for(org.bukkit.entity.Entity entity:location.getWorld().getEntities()){
+                if(entity instanceof TextDisplay display && entity.getScoreboardTags().contains("wg_gameboard")){
+                    if(board==null)board=display;else display.remove();
+                }
+            }
+        }
+        if(board==null){board=location.getWorld().spawn(location,TextDisplay.class);
+            board.addScoreboardTag("wg_gameboard");board.setPersistent(true);
+            board.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+            board.setAlignment(TextDisplay.TextAlignment.CENTER);
+            board.setLineWidth(700);
+        }
+        board.teleport(location);gameBoardId=board.getUniqueId();
+        StringBuilder lines=new StringBuilder("§5§lWOLFSFELL GAMESHOW§r\n§8━━━━━━━━━━━━━━━━━━━━━━━━\n");
+        for(int n=1;n<=9;n++){
+            if(completedGames.contains(n))lines.append("§8§m").append(n).append(". ").append(GAMES[n-1]).append(" - ").append(GAME_DESCRIPTIONS[n-1]).append("§r");
+            else if(n==nextBoardGame())lines.append("§a§l➤ ").append(n).append(". ").append(GAMES[n-1]).append(" §a- ").append(GAME_DESCRIPTIONS[n-1]).append("§r");
+            else lines.append("§7").append(n).append(". ").append(GAMES[n-1]).append(" §8- ").append(GAME_DESCRIPTIONS[n-1]);
+            if(n!=9)lines.append('\n');
+        }
+        board.setText(lines.toString());
+        // Only the next line uses bright green, not the entire display.
+        board.setGlowing(false);
+    }
+    private int nextBoardGame(){for(int i=1;i<=9;i++)if(!completedGames.contains(i))return i;return -1;}
+    private void removeGameBoard(){
+        if(gameBoardId!=null && Bukkit.getEntity(gameBoardId)!=null)Bukkit.getEntity(gameBoardId).remove();
+        Location location=locations.get("gameboard");
+        if(location!=null)for(org.bukkit.entity.Entity entity:location.getWorld().getEntities())if(entity.getScoreboardTags().contains("wg_gameboard"))entity.remove();
+        gameBoardId=null;
+    }
     private void returnUnselectedToCages(){
         for(Player player:Bukkit.getOnlinePlayers()){
             String t=team(player.getUniqueId());
@@ -891,6 +974,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     private void loadState(){
         if(!stateFile.exists())return;YamlConfiguration y=YamlConfiguration.loadConfiguration(stateFile);
+        completedGames.addAll(y.getIntegerList("completed-games"));
         game=y.getInt("game",0);running=false;selectionEnabled=false;studioLocked=y.getBoolean("studio-locked",false);finalists=y.getStringList("finalists");finaleStarted=y.getBoolean("finale-started",false);manualFinalists=y.getBoolean("manual-finalists",false);lastChampion=y.getString("last-champion");leggingsRewards.addAll(y.getStringList("leggings-rewards"));swordRewards.addAll(y.getStringList("sword-rewards"));potionRewards.addAll(y.getStringList("potion-rewards"));
         ConfigurationSection ts=y.getConfigurationSection("teams");if(ts!=null)for(String t:ts.getKeys(false)){
             LinkedHashSet<UUID> members=new LinkedHashSet<>();for(String id:ts.getStringList(t))try{members.add(UUID.fromString(id));}catch(IllegalArgumentException ignored){}teams.put(t,members);
@@ -916,7 +1000,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         ConfigurationSection buy=y.getConfigurationSection("purchases");if(buy!=null)for(String t:buy.getKeys(false)){ConfigurationSection sec=buy.getConfigurationSection(t);if(sec!=null)for(String k:sec.getKeys(false))purchases.computeIfAbsent(t,x->new HashMap<>()).put(k,sec.getInt(k));}
     }
     private void saveState(){
-        YamlConfiguration y=new YamlConfiguration();y.set("game",game);y.set("finalists",finalists);y.set("finale-started",finaleStarted);y.set("manual-finalists",manualFinalists);y.set("last-champion",lastChampion);y.set("leggings-rewards",new ArrayList<>(leggingsRewards));y.set("sword-rewards",new ArrayList<>(swordRewards));y.set("potion-rewards",new ArrayList<>(potionRewards));
+        YamlConfiguration y=new YamlConfiguration();y.set("completed-games",new ArrayList<>(completedGames));y.set("game",game);y.set("finalists",finalists);y.set("finale-started",finaleStarted);y.set("manual-finalists",manualFinalists);y.set("last-champion",lastChampion);y.set("leggings-rewards",new ArrayList<>(leggingsRewards));y.set("sword-rewards",new ArrayList<>(swordRewards));y.set("potion-rewards",new ArrayList<>(potionRewards));
         for(var e:teams.entrySet())y.set("teams."+e.getKey(),e.getValue().stream().map(UUID::toString).toList());
         for(var e:locations.entrySet())y.set("locations."+e.getKey(),e.getValue());
         for(var e:teamColors.entrySet())y.set("team-colors."+e.getKey(),e.getValue());
@@ -1067,7 +1151,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         broadcast("§6§lWORTDUELL BEENDET! §f"+reason);
         playFinalSound(Sound.UI_TOAST_CHALLENGE_COMPLETE,0.8f,1.15f);
         broadcast("§dNetherite-Hose (Schutz I, Haltbarkeit I) für: §f"+String.join(" & ",winners)+" §7– Vorteil gespeichert.");
-        gameOneScreen.idle();saveState();
+        gameOneScreen.idle();saveState();completeGame(6);
     }
     private void stopWordDuell(){wordGeneration++;wordAccepting=false;if(game==6){running=false;gameOneScreen.idle();}}
     private void finalizeTeams(CommandSender s){
@@ -1490,13 +1574,25 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(!admin(sender))return true;
         try {
             switch(cmd){
+                case "board" -> {
+                    if(args.length>=2 && args[1].equalsIgnoreCase("set")){
+                        if(!(sender instanceof Player p)){say(sender,"Nur im Spiel möglich.");return true;}
+                        removeGameBoard();locations.put("gameboard",p.getLocation().clone());
+                        refreshGameBoard();saveState();say(sender,"Hologramm-Spielplan an deiner Position gesetzt.");return true;
+                    }
+                    if(args.length>=2 && args[1].equalsIgnoreCase("remove")){
+                        removeGameBoard();locations.remove("gameboard");saveState();say(sender,"Spielplan entfernt.");return true;
+                    }
+                    if(args.length>=2 && args[1].equalsIgnoreCase("refresh")){refreshGameBoard();say(sender,"Spielplan aktualisiert.");return true;}
+                    say(sender,"/wg board set|refresh|remove");return true;
+                }
                 case "reset" -> {
                     if(args.length<2)break;
                     if(args[1].equalsIgnoreCase("scores")){
                         running=false;game1QuestionActive=false;buzzed=null;selected.clear();
                         qualifying.clear();raw.clear();individual.clear();quizScores.clear();
                         advantages.clear();basketballScores.clear();parkourScores.clear();mysteryScores.clear();
-                        rankLast.clear();questionNumber=0;usedQuestions.clear();attemptedBuzzers.clear();
+                        completedGames.clear();refreshGameBoard();rankLast.clear();questionNumber=0;usedQuestions.clear();attemptedBuzzers.clear();
                         finalists.clear();finaleStarted=false;manualFinalists=false;lastChampion=null;leggingsRewards.clear();swordRewards.clear();potionRewards.clear();selected.clear();answerDeadline=0;game1RoundEnds=0;
                         saveState();updateDisplays();say(sender,"Alle Testpunkte zurückgesetzt. Teams, Regionen und Buzzer bleiben.");return true;
                     }
@@ -1517,6 +1613,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                         if(game==4)for(String t:teams.keySet())if(!teams.get(t).isEmpty() && archeryHits.containsKey(t))raw.computeIfAbsent(t,k->new HashMap<>()).put(game,archeryHits.getOrDefault(t,0));
                         running=false;if(game==3)gameThree.stop();if(game==2){game2Accepting=false;restoreGame2Inventories();}rankRound(sender,game);broadcast("§dSpiel "+game+" abgeschlossen.");
                         if(game==5){estimateGeneration++;estimateAccepting=false;answerDeadline=0;beginFinale(sender);}
+                        if(game!=5||finaleStarted)completeGame(game);
                         return true;
                     }break;
                 }
@@ -1617,11 +1714,12 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         say(p,"Gekauft: "+item+" für "+cost+" Punkte. Rest: "+advantages.get(t));p.playSound(p.getLocation(),"wolfsfell.purchase",1f,1f);saveState();
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
-        if(args.length==1)return Arrays.stream(new String[]{"screen","game3","game5","game6","game7","game8","game9","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==1)return Arrays.stream(new String[]{"board","screen","game3","game5","game6","game7","game8","game9","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         if(args.length==2&&args[0].equalsIgnoreCase("game3"))return List.of("start","stop","debug","laps");
         if(args.length==2&&args[0].equalsIgnoreCase("game6"))return List.of("start","stop","reload");
         if(args.length==2&&args[0].equalsIgnoreCase("game7"))return List.of("tp","start","stop");
         if(args.length==2&&args[0].equalsIgnoreCase("game9"))return List.of("tp","start","stop","status");
+        if(args.length==2&&args[0].equalsIgnoreCase("board"))return List.of("set","refresh","remove");
         if(args.length==2&&args[0].equalsIgnoreCase("game8"))return List.of("tp","start","stop","status","raus","retire");
         if(args.length==2&&args[0].equalsIgnoreCase("screen"))return List.of("set","test","remove","idle");
         if(args.length==2&&args[0].equalsIgnoreCase("candidate"))return List.of("set");
