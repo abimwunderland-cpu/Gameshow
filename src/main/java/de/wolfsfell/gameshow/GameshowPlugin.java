@@ -71,9 +71,16 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private final Map<String,Boolean> mysteryStopped = new HashMap<>();
     private final Map<String,Integer> parkourScores = new HashMap<>();
     private final Map<String,Long> parkourFinishes = new HashMap<>();
+    private final Set<String> swordRewards = new HashSet<>();
+    private int parkourGeneration = 0;
+    private long parkourDeadline = 0L;
+    private boolean parkourCountdown = false;
     private final Map<String,Integer> basketballScores = new HashMap<>();
     private final Map<String,Integer> mysteryChestValues = new HashMap<>();
     private final Set<String> openedChests = new HashSet<>();
+    private final Set<String> potionRewards = new HashSet<>();
+    private int mysteryTurn = 0;
+    private boolean mysteryActive = false;
     private List<String> finalists = new ArrayList<>();
     private boolean finaleStarted = false, manualFinalists = false;
     private final Set<UUID> persistentTeamChat = new HashSet<>();
@@ -105,6 +112,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private record EstimateQuestion(String difficulty,String prompt,int answer) {}
     private final Map<String,Integer> archeryHits = new HashMap<>();
     private GameFourTarget gameFour;
+    private GameNineUhc gameNine;
     private final Map<String,Set<String>> archeryTargets = new HashMap<>();
     private final Map<String,List<Location>> raceCheckpoints = new HashMap<>();
     private final Map<String,Integer> raceProgress = new HashMap<>();
@@ -137,7 +145,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private long game1RemainingOnBuzz=0;
 
     @Override public void onEnable() {
-        saveDefaultConfig(); stateFile = new File(getDataFolder(),"state.yml"); game2BackupFile=new File(getDataFolder(),"game2-inventory-backups.yml");loadGame2Backups();loadState();gameThree=new GameThreeRace(this);gameFour=new GameFourTarget(this);
+        saveDefaultConfig(); stateFile = new File(getDataFolder(),"state.yml"); game2BackupFile=new File(getDataFolder(),"game2-inventory-backups.yml");loadGame2Backups();loadState();gameThree=new GameThreeRace(this);gameFour=new GameFourTarget(this);gameNine=new GameNineUhc(this);
         Bukkit.getPluginManager().registerEvents(this,this);
         Objects.requireNonNull(getCommand("wg")).setExecutor(this);
         Objects.requireNonNull(getCommand("wg")).setTabCompleter(this);
@@ -160,13 +168,25 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         for(var entry:scores.entrySet())raw.computeIfAbsent(entry.getKey(),k->new HashMap<>()).put(3,entry.getValue());
         running=false;rankRound(Bukkit.getConsoleSender(),3);broadcast("§dSpiel 3 automatisch abgeschlossen.");saveState();
     }
-    @Override public void onDisable() {wordGeneration++;wordAccepting=false; restoreGame2Inventories();if(gameThree!=null)gameThree.stop();if(gameFour!=null)gameFour.stop();if(clock!=null)clock.cancel(); for(List<UUID> ids:neonEdges.values())for(UUID id:ids){org.bukkit.entity.Entity e=Bukkit.getEntity(id);if(e!=null)e.remove();} saveState(); }
+    @Override public void onDisable() {wordGeneration++;wordAccepting=false; restoreGame2Inventories();if(gameThree!=null)gameThree.stop();if(gameFour!=null)gameFour.stop();if(gameNine!=null)gameNine.shutdown();if(clock!=null)clock.cancel(); for(List<UUID> ids:neonEdges.values())for(UUID id:ids){org.bukkit.entity.Entity e=Bukkit.getEntity(id);if(e!=null)e.remove();} saveState(); }
     private String key(Location l) { return l.getWorld().getUID()+":"+l.getBlockX()+":"+l.getBlockY()+":"+l.getBlockZ(); }
     private String team(UUID u) { for(var e:teams.entrySet()) if(e.getValue().contains(u))return e.getKey(); return null; }
     private void say(CommandSender s,String msg) { s.sendMessage(ChatColor.LIGHT_PURPLE+"[Gameshow] "+ChatColor.WHITE+msg); }
     private void broadcast(String msg) { Bukkit.broadcastMessage(ChatColor.LIGHT_PURPLE+"[Gameshow] "+ChatColor.WHITE+msg); }
     private boolean admin(CommandSender s) { if(s.hasPermission("wg.admin"))return true; say(s,"Keine Berechtigung.");return false; }
     private int elapsed() { return (int)((System.currentTimeMillis()-startMillis)/1000); }
+    List<String> uhcFinalists(){return List.copyOf(finalists);}
+    Set<UUID> uhcMembers(String t){return teams.getOrDefault(t,new LinkedHashSet<>());}
+    UUID uhcSelected(String t){return selected.get(t);}
+    Location uhcLocation(String name){return locations.get(name);}
+    boolean uhcFinaleStarted(){return finaleStarted;}
+    boolean uhcLeggings(String team){return leggingsRewards.contains(team);}
+    boolean uhcSword(String team){return swordRewards.contains(team);}
+    boolean uhcPotions(String team){return potionRewards.contains(team);}
+    void uhcBegin(){game=9;running=true;selectionEnabled=false;studioLocked=false;saveState();}
+    void uhcEnd(String winner){running=false;game=9; if(winner!=null){lastChampion=winner;saveState();}else saveState();}
+    boolean uhcIsGame(){return game==9;}
+    private String lastChampion = null;
     private boolean finalTeam(String t) { return finalists.contains(t); }
     private void tick() {
         if(selectionEnabled) {
@@ -196,14 +216,16 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(game==2 && answerDeadline>0 && System.currentTimeMillis()>=answerDeadline) {
             answerDeadline=0; resolveQuestion();
         }
-        if(game==7) {
-            int left=Math.max(0,getConfig().getInt("settings.parkour-start-points",12)-elapsed()/Math.max(1,getConfig().getInt("settings.parkour-loss-every-seconds",15)));
-            if(elapsed()%5==0 && System.currentTimeMillis()%1000<60) for(String t:finalists) for(UUID id:teams.getOrDefault(t,new LinkedHashSet<>())) {
-                Player p=Bukkit.getPlayer(id);if(p!=null)p.sendActionBar("§dPARKOUR §7| §f"+left+" mögliche Punkte §7| §e"+elapsed()+"s");
+        if(game==7 && !parkourCountdown) {
+            long millis=Math.max(0L,parkourDeadline-System.currentTimeMillis());
+            int seconds=(int)((millis+999)/1000);
+            if(System.currentTimeMillis()%1000<55)for(String t:finalists){
+                Player p=Bukkit.getPlayer(selected.get(t));
+                if(p!=null)p.sendActionBar("§dPARKOUR §7| §f"+String.format("%d:%02d",seconds/60,seconds%60)+" §7| §eErster im Ziel gewinnt!");
             }
-            if(left==0){ for(String t:finalists)parkourScores.putIfAbsent(t,0); stopParkour(); }
+            if(millis==0L)finishParkour(null,true);
         }
-        if(game==8 && elapsed()>=getConfig().getInt("settings.mystery-duration-seconds",300))finishMystery();
+        // Mystery-Chests has no time limit: each player decides when to retire.
     }
     @EventHandler public void onMove(PlayerMoveEvent e) {
         if(e.getTo()==null)return;
@@ -236,16 +258,92 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 }
             }
         }
+        if(running && game==7 && parkourCountdown){
+            String ct=team(e.getPlayer().getUniqueId());
+            if(ct!=null&&finalTeam(ct)&&Objects.equals(selected.get(ct),e.getPlayer().getUniqueId())&&
+                (e.getFrom().getX()!=e.getTo().getX()||e.getFrom().getZ()!=e.getTo().getZ()))e.setTo(e.getFrom());
+            return;
+        }
         if(!running || game!=7)return;
-        String t=team(e.getPlayer().getUniqueId());if(t==null || !finalTeam(t) || !Objects.equals(selected.get(t),e.getPlayer().getUniqueId()) || parkourFinishes.containsKey(t))return;
-        Location goal=locations.get("parkour-finish");if(goal==null || !goal.getWorld().equals(e.getTo().getWorld()) || e.getTo().distanceSquared(goal)>2.25)return;
-        int pts=Math.max(0,getConfig().getInt("settings.parkour-start-points",12)-elapsed()/Math.max(1,getConfig().getInt("settings.parkour-loss-every-seconds",15)));
-        if(parkourFinishes.isEmpty())pts+=getConfig().getInt("settings.parkour-win-bonus",2);
-        parkourFinishes.put(t,System.currentTimeMillis());parkourScores.put(t,pts);
-        broadcast("§a"+e.getPlayer().getName()+" §7beendet Parkour: §e+"+pts+" Vorteilspunkte");
-        if(parkourFinishes.size()>=finalists.size())stopParkour();else saveState();
+        String t=team(e.getPlayer().getUniqueId());
+        if(t==null || !finalTeam(t) || !Objects.equals(selected.get(t),e.getPlayer().getUniqueId()))return;
+        if(parkourFinishes.containsKey(t))return;
+        if(!atParkourGoal(e.getTo()))return;
+        parkourFinishes.put(t,System.currentTimeMillis());
+        finishParkour(t,false);
     }
-    private void stopParkour(){if(!running || game!=7)return;for(String t:finalists)advantages.merge(t,parkourScores.getOrDefault(t,0),Integer::sum);running=false;broadcast("Parkour beendet! Vorteile wurden gutgeschrieben.");saveState();}
+    private boolean atParkourGoal(Location l){
+        Location a=locations.get("parkour-finish-a"),b=locations.get("parkour-finish-b");
+        if(a==null||b==null||l==null||!l.getWorld().equals(a.getWorld())||!l.getWorld().equals(b.getWorld()))return false;
+        // Target is a 2-block-high vertical finish plane spanning the marked endpoints.
+        double x0=Math.min(a.getBlockX(),b.getBlockX())-0.45,x1=Math.max(a.getBlockX(),b.getBlockX())+1.45;
+        double z0=Math.min(a.getBlockZ(),b.getBlockZ())-0.45,z1=Math.max(a.getBlockZ(),b.getBlockZ())+1.45;
+        int y0=Math.min(a.getBlockY(),b.getBlockY())-1,y1=Math.max(a.getBlockY(),b.getBlockY())+3;
+        return l.getX()>=x0&&l.getX()<=x1&&l.getZ()>=z0&&l.getZ()<=z1&&l.getY()>=y0&&l.getY()<=y1;
+    }
+    private void playFinalSound(Sound sound,float volume,float pitch){
+        for(Player p:Bukkit.getOnlinePlayers())p.playSound(p.getLocation(),sound,volume,pitch);
+    }
+    private void parkourTeleport(CommandSender sender){
+        if(!finaleStarted || finalists.size()!=2){say(sender,"Finale fehlt: /wg finishround");return;}
+        Location start=locations.get("parkour-start");
+        if(start==null){say(sender,"Setze den Parkour-Start: /wg wand game7, Linksklick auf Startblock.");return;}
+        if(!locations.containsKey("parkour-finish-a")||!locations.containsKey("parkour-finish-b")){
+            say(sender,"Ziellinie fehlt: Wand-Rechtsklick und Shift-Rechtsklick auf die Endpunkte.");return;
+        }
+        for(int i=0;i<finalists.size();i++){
+            String t=finalists.get(i);UUID id=selected.get(t);Player player=id==null?null:Bukkit.getPlayer(id);
+            if(player==null || !teams.getOrDefault(t,new LinkedHashSet<>()).contains(id)){
+                say(sender,"Kandidat fehlt für "+t+": /wg select on oder /wg candidate set "+t+" <Spieler>");return;
+            }
+        }
+        studioLocked=false;
+        for(int i=0;i<finalists.size();i++){
+            Player p=Bukkit.getPlayer(selected.get(finalists.get(i)));
+            Location target=start.clone().add(i==0?-0.6:0.6,0,0);
+            p.teleport(target);p.setGameMode(GameMode.ADVENTURE);
+            p.sendTitle("§dPARKOUR", "§7Warte auf den Start!",10,40,10);
+        }
+        say(sender,"Beide Kandidaten am Parkour-Start. /wg game7 start für den Countdown.");
+    }
+    private void startParkour(CommandSender sender){
+        if(running){say(sender,"Es läuft bereits ein Spiel.");return;}
+        if(!finaleStarted || finalists.size()!=2){say(sender,"Erst /wg finishround ausführen.");return;}
+        if(!locations.containsKey("parkour-start")||!locations.containsKey("parkour-finish-a")||!locations.containsKey("parkour-finish-b")){
+            say(sender,"Start/Ziellinie fehlt. /wg wand game7: Links Start, Rechts Ziel A, Shift-Rechts Ziel B.");return;
+        }
+        for(String t:finalists){UUID id=selected.get(t);if(id==null||!teams.getOrDefault(t,new LinkedHashSet<>()).contains(id)||Bukkit.getPlayer(id)==null){say(sender,"Selected Player für "+t+" fehlt.");return;}}
+        game=7;parkourScores.clear();parkourFinishes.clear();running=true;parkourCountdown=true;parkourDeadline=0;
+        selectionEnabled=false;parkourTeleport(sender);
+        int gen=++parkourGeneration;
+        broadcast("§d§lPARKOUR! §7Erster im Ziel gewinnt das §fNetherite-Schwert Schärfe I§7! Maximal 6 Minuten.");
+        for(int left=5;left>=1;left--){final int value=left;
+            Bukkit.getScheduler().runTaskLater(this,()->{
+                if(!running||game!=7||gen!=parkourGeneration)return;
+                for(String t:finalists){Player p=Bukkit.getPlayer(selected.get(t));if(p!=null)p.sendTitle("§e"+value,"§7Gleich geht's los!",0,22,0);}
+                playFinalSound(Sound.BLOCK_NOTE_BLOCK_HAT,0.55f,0.8f+0.12f*(5-value));
+            },(5-left)*20L);
+        }
+        Bukkit.getScheduler().runTaskLater(this,()->{
+            if(!running||game!=7||gen!=parkourGeneration)return;
+            parkourCountdown=false;startMillis=System.currentTimeMillis();parkourDeadline=startMillis+360_000L;
+            for(String t:finalists){Player p=Bukkit.getPlayer(selected.get(t));if(p!=null)p.sendTitle("§a§lLOS!","§f6 Minuten – auf ins Ziel!",0,30,10);}
+            playFinalSound(Sound.ENTITY_PLAYER_LEVELUP,0.8f,1.3f);saveState();
+        },100L);
+    }
+    private void finishParkour(String winner,boolean timeout){
+        if(!running||game!=7)return;
+        running=false;parkourCountdown=false;parkourDeadline=0;parkourGeneration++;
+        if(winner!=null){
+            if(swordRewards.add(winner)){advantages.merge(winner,1,Integer::sum);}
+            broadcast("§a§lPARKOUR-SIEGER: §f"+winner+" §7– Netherite-Schwert (§eSchärfe I§7) als KitUHC-Vorteil gespeichert!");
+            playFinalSound(Sound.UI_TOAST_CHALLENGE_COMPLETE,0.9f,1.15f);
+        }else{
+            broadcast(timeout?"§c§lPARKOUR: 6 Minuten abgelaufen! §7Kein Schwertvorteil vergeben.":"§eParkour vom Moderator abgebrochen – kein Vorteil vergeben.");
+            playFinalSound(Sound.BLOCK_NOTE_BLOCK_BASS,0.65f,0.8f);
+        }
+        saveState();updateDisplays();
+    }
     private boolean insideHorizontal(Location point,Location a,Location b){
         return point!=null && point.getWorld().equals(a.getWorld()) &&
             point.getBlockX()>=Math.min(a.getBlockX(),b.getBlockX()) && point.getBlockX()<=Math.max(a.getBlockX(),b.getBlockX()) &&
@@ -286,21 +384,91 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
         buzz(e.getPlayer());
     }
-    @EventHandler public void onChest(PlayerInteractEvent e) {
-        if(!running || game!=8 || e.getAction()!=Action.RIGHT_CLICK_BLOCK || e.getClickedBlock()==null)return;
-        Block b=e.getClickedBlock();String k=key(b.getLocation());if(!mysteryChestValues.containsKey(k))return;
-        e.setCancelled(true);String t=team(e.getPlayer().getUniqueId());
-        if(t==null || !finalTeam(t)){say(e.getPlayer(),"Nur Finalteams dürfen Truhen öffnen.");return;}
-        if(!Objects.equals(selected.get(t),e.getPlayer().getUniqueId())){say(e.getPlayer(),"Du bist nicht der gewählte Glückspilz.");return;}
-        if(mysteryStopped.getOrDefault(t,false)){say(e.getPlayer(),"Dein Team ist bereits ausgestiegen.");return;}
-        if(openedChests.contains(k)){say(e.getPlayer(),"Diese Truhe wurde bereits geöffnet.");return;}
-        int value=mysteryChestValues.get(k);openedChests.add(k);mysteryScores.merge(t,value,Integer::sum);
-        b.getWorld().spawnParticle(Particle.HAPPY_VILLAGER,b.getLocation().add(.5,1,.5),24,.35,.35,.35);
-        b.getWorld().playSound(b.getLocation(),Sound.BLOCK_NOTE_BLOCK_PLING,1f,value>=0?1.6f:.5f);
-        broadcast(e.getPlayer().getName()+" öffnet Truhe: §e"+(value>0?"+":"")+value+" §7| "+t+" gesamt: §e"+mysteryScores.get(t));saveState();
-        if(openedChests.size()==mysteryChestValues.size())finishMystery();
+    private void mysteryTeleport(CommandSender sender) {
+        if(!finaleStarted || finalists.size()!=2){say(sender,"Erst /wg finishround ausführen.");return;}
+        Location spawn=locations.get("game8-start");
+        if(spawn==null){say(sender,"Arena-Start fehlt: Im Bereich stehen und /wg set game8-start eingeben.");return;}
+        for(String t:finalists){
+            UUID id=selected.get(t);Player player=id==null?null:Bukkit.getPlayer(id);
+            if(player==null || !teams.getOrDefault(t,new LinkedHashSet<>()).contains(id)){
+                say(sender,"Selected Player für "+t+" fehlt. /wg select on oder /wg candidate set <Team> <Spieler>");return;
+            }
+        }
+        studioLocked=false;
+        for(int i=0;i<2;i++){
+            Player player=Bukkit.getPlayer(selected.get(finalists.get(i)));
+            player.teleport(spawn.clone().add(i==0?-0.7:0.7,0,0));player.setGameMode(GameMode.ADVENTURE);
+            player.sendTitle("§dMYSTERY-CHESTS","§7Warte auf das Startsignal!",10,50,10);
+        }
+        say(sender,"Finalisten in die Arena teleportiert.");
     }
-    private void finishMystery(){if(!running || game!=8)return;running=false;for(String t:finalists)advantages.merge(t,mysteryScores.getOrDefault(t,0),Integer::sum);broadcast("Mystery beendet. Punkte wurden verbucht!");saveState();}
+    private void startMystery(CommandSender sender){
+        if(running){say(sender,"Es läuft bereits ein Spiel.");return;}
+        if(!finaleStarted || finalists.size()!=2){say(sender,"Finalteams fehlen. /wg finishround");return;}
+        if(mysteryChestValues.size()!=50){say(sender,"Markiere genau 50 Kisten mit /wg wand game8 ("+mysteryChestValues.size()+"/50).");return;}
+        for(String t:finalists){UUID id=selected.get(t);if(id==null||!teams.getOrDefault(t,new LinkedHashSet<>()).contains(id)||Bukkit.getPlayer(id)==null){say(sender,"Selected Player für "+t+" fehlt.");return;}}
+        setupMystery(sender);
+        game=8;running=true;mysteryActive=true;selectionEnabled=false;mysteryTurn=random.nextInt(2);
+        startMillis=System.currentTimeMillis();
+        if(locations.containsKey("game8-start"))mysteryTeleport(sender);
+        broadcast("§d§lMYSTERY-CHESTS! §f50 Kisten, Werte −2 bis +2. §7Abwechselnd eine öffnen. /wg game8 raus zum Aussteigen!");
+        playFinalSound(Sound.UI_TOAST_IN,0.75f,1.1f);
+        announceMysteryTurn();saveState();
+    }
+    private void announceMysteryTurn(){
+        if(!running||game!=8||!mysteryActive)return;
+        int attempts=0;
+        while(attempts<2 && mysteryStopped.getOrDefault(finalists.get(mysteryTurn),false)){mysteryTurn=(mysteryTurn+1)%2;attempts++;}
+        if(attempts>=2 || finalists.stream().allMatch(t->mysteryStopped.getOrDefault(t,false))){finishMystery(false);return;}
+        String t=finalists.get(mysteryTurn);
+        Player p=Bukkit.getPlayer(selected.get(t));
+        broadcast("§d§lAM ZUG: §f"+t+" §8| §7Kisten: §f"+(50-openedChests.size())+" §8| §7Punkte: §f"+mysteryScores.getOrDefault(finalists.get(0),0)+" / "+mysteryScores.getOrDefault(finalists.get(1),0));
+        for(String f:finalists){Player player=Bukkit.getPlayer(selected.get(f));if(player!=null)player.sendTitle(f.equals(t)?"§aDEIN ZUG":"§7Gegner am Zug",f.equals(t)?"§fÖffne eine unbenutzte Kiste":"§7Warte auf die nächste Wahl",0,28,5);}
+        playFinalSound(Sound.BLOCK_NOTE_BLOCK_HAT,0.5f,1.25f);
+    }
+    private void retireMystery(CommandSender sender,String t){
+        if(!running||game!=8||!mysteryActive){say(sender,"Mystery-Chests läuft gerade nicht.");return;}
+        if(!finalTeam(t)){say(sender,"Nur die beiden Finalteams können aussteigen.");return;}
+        if(mysteryStopped.getOrDefault(t,false)){say(sender,"Team "+t+" ist bereits ausgestiegen.");return;}
+        mysteryStopped.put(t,true);
+        broadcast("§e"+t+" §7steigt freiwillig aus! Endpunktestand: §f"+mysteryScores.getOrDefault(t,0));
+        playFinalSound(Sound.BLOCK_NOTE_BLOCK_BASS,0.7f,0.85f);
+        if(finalists.stream().allMatch(f->mysteryStopped.getOrDefault(f,false)))finishMystery(false);
+        else announceMysteryTurn();
+        saveState();
+    }
+    @EventHandler public void onChest(PlayerInteractEvent e) {
+        if(!running || game!=8 || !mysteryActive || e.getHand()!=EquipmentSlot.HAND || e.getAction()!=Action.RIGHT_CLICK_BLOCK || e.getClickedBlock()==null)return;
+        Block b=e.getClickedBlock();String k=key(b.getLocation());if(!mysteryChestValues.containsKey(k))return;
+        e.setCancelled(true);
+        String t=team(e.getPlayer().getUniqueId());
+        if(t==null || !finalTeam(t)){say(e.getPlayer(),"Nur Finalteams dürfen Kisten öffnen.");return;}
+        if(!Objects.equals(selected.get(t),e.getPlayer().getUniqueId())){say(e.getPlayer(),"Nur der aktuell ausgewählte Kandidat darf spielen.");return;}
+        if(mysteryStopped.getOrDefault(t,false)){say(e.getPlayer(),"Du bist ausgestiegen und kannst nicht zurückkommen.");return;}
+        if(!finalists.get(mysteryTurn).equals(t)){say(e.getPlayer(),"§cNicht dein Zug!");return;}
+        if(openedChests.contains(k)){say(e.getPlayer(),"§eDiese Kiste ist bereits geöffnet.");return;}
+        int value=mysteryChestValues.get(k);
+        openedChests.add(k);mysteryScores.merge(t,value,Integer::sum);
+        b.getWorld().spawnParticle(value>=0?Particle.HAPPY_VILLAGER:Particle.SMOKE,b.getLocation().add(.5,1,.5),22,.35,.3,.35);
+        playFinalSound(value>0?Sound.ENTITY_EXPERIENCE_ORB_PICKUP:value<0?Sound.BLOCK_NOTE_BLOCK_BASS:Sound.BLOCK_NOTE_BLOCK_PLING,0.75f,value>0?1.3f:value<0?.7f:1f);
+        broadcast("§d"+e.getPlayer().getName()+" §7zieht §f"+(value>0?"+":"")+value+" §8| §7"+t+" gesamt: §e"+mysteryScores.get(t));
+        if(openedChests.size()>=50){finishMystery(false);return;}
+        mysteryTurn=(mysteryTurn+1)%2;announceMysteryTurn();saveState();
+    }
+    private void finishMystery(boolean cancelled){
+        if(!running||game!=8||!mysteryActive)return;
+        running=false;mysteryActive=false;
+        if(cancelled){broadcast("§cMystery-Chests abgebrochen – kein Vorteil vergeben.");saveState();return;}
+        int a=mysteryScores.getOrDefault(finalists.get(0),0),b=mysteryScores.getOrDefault(finalists.get(1),0);
+        int best=Math.max(a,b);
+        List<String> winners=new ArrayList<>();
+        if(a==best)winners.add(finalists.get(0));
+        if(b==best)winners.add(finalists.get(1));
+        for(String t:winners)if(potionRewards.add(t))advantages.merge(t,1,Integer::sum);
+        broadcast("§d§lMYSTERY-CHESTS ENDE! §f"+finalists.get(0)+" §7"+a+" Punkte §8| §f"+finalists.get(1)+" §7"+b+" Punkte");
+        broadcast("§a§lVORTEIL: §f"+String.join(" & ",winners)+" §7erhält 3 Heilungstränke für KitUHC"+(winners.size()==2?" (Gleichstand)":"")+"!");
+        playFinalSound(Sound.UI_TOAST_CHALLENGE_COMPLETE,0.85f,1.15f);saveState();updateDisplays();
+    }
     @EventHandler public void onJoin(PlayerJoinEvent e) { Bukkit.getScheduler().runTaskLater(this,()->{restoreGame2Inventory(e.getPlayer());updateDisplays();},20); }
     @EventHandler public void onQuit(PlayerQuitEvent e) { if(e.getPlayer().getUniqueId().equals(buzzed))buzzed=null; }
     @EventHandler public void onChat(AsyncPlayerChatEvent e) {
@@ -578,12 +746,13 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             }
             p.setPlayerListHeaderFooter(tab.toString(),"§dLive täglich 17 Uhr §7| §fWolfsfellTV");
             String suffix=mine==null?"":(" §8["+chatColor(mine)+mine+"§8]");p.setPlayerListName((mine==null?"§f":chatColor(mine).toString())+p.getName()+suffix);
-            List<String> ranks=new ArrayList<>(teams.keySet());ranks.sort(Comparator.comparingInt((String t)->qualifying.getOrDefault(t,0)).reversed());
+            List<String> ranks=new ArrayList<>(finaleStarted?finalists:teams.keySet());
+            ranks.sort(Comparator.comparingInt((String t)->(finaleStarted?advantages:qualifying).getOrDefault(t,0)).reversed());
             StringBuilder side=new StringBuilder("§5§lGAMESHOW\n§7Spiel "+game+"/9\n");
             if(game==1)side.append("§eQuiz ").append(questionNumber).append("/10 §7| §f").append(quizScores.getOrDefault(mine,0)).append(" Punkte\n");
-            side.append("§dTOP 5 TEAMS\n");
-            for(int i=0;i<Math.min(5,ranks.size());i++)side.append("§f").append(i+1).append(". ").append(chatColor(ranks.get(i))).append(ranks.get(i)).append(" §d").append(qualifying.getOrDefault(ranks.get(i),0)).append("\n");
-            if(mine!=null)side.append("§7Du: #").append(ranks.indexOf(mine)+1).append(" §f").append(qualifying.getOrDefault(mine,0)).append("\n");
+            side.append(finaleStarted?"§dFINALE · VORTEILE\n":"§dTOP 5 TEAMS\n");
+            for(int i=0;i<Math.min(5,ranks.size());i++)side.append("§f").append(i+1).append(". ").append(chatColor(ranks.get(i))).append(ranks.get(i)).append(" §d").append((finaleStarted?advantages:qualifying).getOrDefault(ranks.get(i),0)).append("\n");
+            if(mine!=null)side.append("§7Du: #").append(ranks.indexOf(mine)+1).append(" §f").append((finaleStarted?advantages:qualifying).getOrDefault(mine,0)).append("\n");
             List<UUID> people=new ArrayList<>(individual.keySet());people.sort(Comparator.comparingInt((UUID id)->individual.getOrDefault(id,0)).reversed());
             side.append("§dTOP 5 SPIELER\n");for(int i=0;i<Math.min(5,people.size());i++)side.append("§f").append(i+1).append(". ").append(team(people.get(i))==null?ChatColor.WHITE:chatColor(team(people.get(i)))).append(Optional.ofNullable(Bukkit.getOfflinePlayer(people.get(i)).getName()).orElse("?" )).append(" §d").append(individual.get(people.get(i))).append("\n");
             side.append("§7Du: #").append(people.indexOf(p.getUniqueId())+1).append(" §f").append(individual.getOrDefault(p.getUniqueId(),0));
@@ -605,8 +774,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     String wideTeamColor(String t){return teamColors.getOrDefault(t,"PURPLE");}
     String widePlayerColor(UUID id){String t=team(id);return t==null?"WHITE":wideTeamColor(t);}
-    List<String> wideTeams(){List<String> r=new ArrayList<>(teams.keySet());r.sort(Comparator.comparingInt((String t)->qualifying.getOrDefault(t,0)+(running && game==1?quizScores.getOrDefault(t,0):0)).reversed().thenComparing(t->t));return r;}
-    int wideTeamPoints(String t){return qualifying.getOrDefault(t,0)+(running && game==1?quizScores.getOrDefault(t,0):0);}
+    List<String> wideTeams(){List<String> r=new ArrayList<>(finaleStarted?finalists:teams.keySet());r.sort(Comparator.comparingInt((String t)->wideTeamPoints(t)).reversed().thenComparing(t->t));return r;}
+    int wideTeamPoints(String t){return finaleStarted?advantages.getOrDefault(t,0):qualifying.getOrDefault(t,0)+(running && game==1?quizScores.getOrDefault(t,0):0);}
     List<UUID> widePlayers(){List<UUID> r=new ArrayList<>(individual.keySet());r.sort(Comparator.comparingInt((UUID id)->individual.getOrDefault(id,0)).reversed());return r;}
     int widePlayerPoints(UUID id){return individual.getOrDefault(id,0);}
     String widePlayerName(UUID id){return Optional.ofNullable(Bukkit.getOfflinePlayer(id).getName()).orElse("Spieler");}
@@ -722,7 +891,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     }
     private void loadState(){
         if(!stateFile.exists())return;YamlConfiguration y=YamlConfiguration.loadConfiguration(stateFile);
-        game=y.getInt("game",0);running=false;selectionEnabled=false;studioLocked=y.getBoolean("studio-locked",false);finalists=y.getStringList("finalists");finaleStarted=y.getBoolean("finale-started",false);manualFinalists=y.getBoolean("manual-finalists",false);leggingsRewards.addAll(y.getStringList("leggings-rewards"));
+        game=y.getInt("game",0);running=false;selectionEnabled=false;studioLocked=y.getBoolean("studio-locked",false);finalists=y.getStringList("finalists");finaleStarted=y.getBoolean("finale-started",false);manualFinalists=y.getBoolean("manual-finalists",false);lastChampion=y.getString("last-champion");leggingsRewards.addAll(y.getStringList("leggings-rewards"));swordRewards.addAll(y.getStringList("sword-rewards"));potionRewards.addAll(y.getStringList("potion-rewards"));
         ConfigurationSection ts=y.getConfigurationSection("teams");if(ts!=null)for(String t:ts.getKeys(false)){
             LinkedHashSet<UUID> members=new LinkedHashSet<>();for(String id:ts.getStringList(t))try{members.add(UUID.fromString(id));}catch(IllegalArgumentException ignored){}teams.put(t,members);
         }
@@ -747,7 +916,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         ConfigurationSection buy=y.getConfigurationSection("purchases");if(buy!=null)for(String t:buy.getKeys(false)){ConfigurationSection sec=buy.getConfigurationSection(t);if(sec!=null)for(String k:sec.getKeys(false))purchases.computeIfAbsent(t,x->new HashMap<>()).put(k,sec.getInt(k));}
     }
     private void saveState(){
-        YamlConfiguration y=new YamlConfiguration();y.set("game",game);y.set("finalists",finalists);y.set("finale-started",finaleStarted);y.set("manual-finalists",manualFinalists);y.set("leggings-rewards",new ArrayList<>(leggingsRewards));
+        YamlConfiguration y=new YamlConfiguration();y.set("game",game);y.set("finalists",finalists);y.set("finale-started",finaleStarted);y.set("manual-finalists",manualFinalists);y.set("last-champion",lastChampion);y.set("leggings-rewards",new ArrayList<>(leggingsRewards));y.set("sword-rewards",new ArrayList<>(swordRewards));y.set("potion-rewards",new ArrayList<>(potionRewards));
         for(var e:teams.entrySet())y.set("teams."+e.getKey(),e.getValue().stream().map(UUID::toString).toList());
         for(var e:locations.entrySet())y.set("locations."+e.getKey(),e.getValue());
         for(var e:teamColors.entrySet())y.set("team-colors."+e.getKey(),e.getValue());
@@ -802,7 +971,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             }
             finalists=new ArrayList<>(order.subList(0,2));
         }
-        finaleStarted=true;advantages.clear();leggingsRewards.clear();
+        finaleStarted=true;advantages.clear();leggingsRewards.clear();swordRewards.clear();potionRewards.clear();
         for(String t:finalists)advantages.put(t,0);
         List<String> eliminated=new ArrayList<>(teams.keySet());eliminated.removeAll(finalists);
         broadcast("§c§lAUSGESCHIEDENE TEAMS: §7"+(eliminated.isEmpty()?"Keine":String.join(", ",eliminated)));
@@ -845,14 +1014,19 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(wordRound>=13){completeWordDuell("Beide Finalisten haben alle 13 Runden bestanden!",new HashSet<>(finalists));return;}
         wordRound++;wordAnswers.clear();wordAccepting=false;
         WordQuestion q=wordSequence.get(wordRound-1);
-        for(Player p:Bukkit.getOnlinePlayers()){p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_PLING,0.7f,1.1f);}
+        for(Player p:Bukkit.getOnlinePlayers()){
+            p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_CHIME,0.55f,1.2f);
+            p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_PLING,0.4f,1.7f);
+        }
         broadcast("§d§lWORTDUELL §fRunde "+wordRound+"/13 §7– 3 Sekunden lesen!");
+        broadcast("§f§lFRAGE: §e"+q.prompt());
         gameOneScreen.showWordDuell(wordRound,q.prompt(),3,false);
         Bukkit.getScheduler().runTaskLater(this,()->{
             if(!running||generation!=wordGeneration)return;
             wordAccepting=true;
             int seconds=14-wordRound;
-            for(Player p:Bukkit.getOnlinePlayers())p.playSound(p.getLocation(),Sound.BLOCK_NOTE_BLOCK_BELL,0.8f,1.3f);
+            playFinalSound(Sound.BLOCK_NOTE_BLOCK_BELL,0.7f,1.3f);
+            for(String t:finalists){Player p=Bukkit.getPlayer(selected.get(t));if(p!=null)p.sendMessage("§a§lJETZT ANTWORTEN! §7"+seconds+" Sekunden.");}
             for(int left=seconds;left>=1;left--){final int remaining=left;
                 Bukkit.getScheduler().runTaskLater(this,()->{
                     if(!running||generation!=wordGeneration||!wordAccepting)return;
@@ -883,6 +1057,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             completeWordDuell(surviving.isEmpty()?"Beide ausgeschieden! Beide erhalten den Vorteil.":"Ein Finalist hat überlebt!",surviving.isEmpty()?new HashSet<>(finalists):surviving);return;
         }
         broadcast("§aBeide haben Runde "+wordRound+" geschafft!");
+        playFinalSound(Sound.BLOCK_AMETHYST_BLOCK_CHIME,0.65f,1.25f);
         gameOneScreen.showWordDuell(wordRound,"BEIDE ÜBERLEBEN!",0,false);
         Bukkit.getScheduler().runTaskLater(this,()->nextWordRound(generation),40L);
     }
@@ -890,6 +1065,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(!running||game!=6)return;wordAccepting=false;running=false;wordGeneration++;
         for(String t:winners){if(leggingsRewards.add(t)){advantages.merge(t,1,Integer::sum);}}
         broadcast("§6§lWORTDUELL BEENDET! §f"+reason);
+        playFinalSound(Sound.UI_TOAST_CHALLENGE_COMPLETE,0.8f,1.15f);
         broadcast("§dNetherite-Hose (Schutz I, Haltbarkeit I) für: §f"+String.join(" & ",winners)+" §7– Vorteil gespeichert.");
         gameOneScreen.idle();saveState();
     }
@@ -902,13 +1078,16 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         finalists=new ArrayList<>(order.subList(0,2));advantages.clear();for(String t:finalists)advantages.put(t,0);broadcast("FINALISTEN: §d"+finalists.get(0)+" §7vs §d"+finalists.get(1));saveState();
     }
     private void setupMystery(CommandSender s){
-        if(mysteryChestValues.size()!=50){say(s,"Es sind "+mysteryChestValues.size()+" statt 50 Truhen markiert. /wg chest add auf jede Truhe richten.");return;}
-        List<Integer> values=new ArrayList<>();List<Integer> v=getConfig().getIntegerList("settings.mystery-values"),counts=getConfig().getIntegerList("settings.mystery-counts");
-        for(int i=0;i<Math.min(v.size(),counts.size());i++)for(int j=0;j<counts.get(i);j++)values.add(v.get(i));
-        if(values.size()!=50){say(s,"config.yml: Mystery-Verteilung muss genau 50 ergeben.");return;}
-        Collections.shuffle(values);List<String> keys=new ArrayList<>(mysteryChestValues.keySet());Collections.sort(keys);
-        for(int i=0;i<50;i++)mysteryChestValues.put(keys.get(i),values.get(i));openedChests.clear();mysteryScores.clear();mysteryStopped.clear();
-        for(String t:finalists)mysteryScores.put(t,0);say(s,"50 Mystery-Werte zufällig neu verteilt.");saveState();
+        if(mysteryChestValues.size()!=50){say(s,"Es müssen genau 50 Truhen markiert sein.");return;}
+        List<Integer> values=new ArrayList<>();
+        // Exactly 10 of each value: randomized placement, fair value distribution.
+        for(int v=-2;v<=2;v++)for(int i=0;i<10;i++)values.add(v);
+        Collections.shuffle(values,random);
+        List<String> keys=new ArrayList<>(mysteryChestValues.keySet());Collections.sort(keys);
+        for(int i=0;i<50;i++)mysteryChestValues.put(keys.get(i),values.get(i));
+        openedChests.clear();mysteryScores.clear();mysteryStopped.clear();
+        for(String t:finalists)mysteryScores.put(t,0);
+        say(s,"50 Kisten neu gemischt: je 10 mal -2, -1, 0, +1, +2.");saveState();
     }
     private ChatColor chatColor(String t) {
         try { return ChatColor.valueOf(teamColors.getOrDefault(t,"WHITE")); }
@@ -1095,6 +1274,35 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(e.getClickedBlock()==null)return;
         e.setCancelled(true);
         Block b=e.getClickedBlock();
+        if(mode.equals("game9")){
+            if(e.getAction()==Action.LEFT_CLICK_BLOCK){locations.put("game9-corner-a",b.getLocation());say(p,"§aKit-UHC Arenaecke A gespeichert.");}
+            else if(e.getAction()==Action.RIGHT_CLICK_BLOCK){locations.put("game9-corner-b",b.getLocation());say(p,"§aKit-UHC Arenaecke B gespeichert.");}
+            saveState();return;
+        }
+        if(mode.equals("game8")){
+            if(b.getType()!=Material.CHEST && b.getType()!=Material.TRAPPED_CHEST){say(p,"§cBitte eine echte Truhe anklicken.");return;}
+            String k=key(b.getLocation());
+            if(e.getAction()==Action.RIGHT_CLICK_BLOCK){
+                if(!mysteryChestValues.containsKey(k)&&mysteryChestValues.size()>=50){say(p,"§cBereits 50 Kisten markiert.");return;}
+                mysteryChestValues.putIfAbsent(k,0);
+                say(p,"§aMystery-Kiste markiert: §f"+mysteryChestValues.size()+"/50");
+            }else if(e.getAction()==Action.LEFT_CLICK_BLOCK){
+                mysteryChestValues.remove(k);openedChests.remove(k);
+                say(p,"§eMystery-Kiste entfernt: §f"+mysteryChestValues.size()+"/50");
+            }
+            saveState();return;
+        }
+        if(mode.equals("game7")){
+            if(e.getAction()==Action.LEFT_CLICK_BLOCK){
+                locations.put("parkour-start",b.getLocation().add(0.5,1,0.5));
+                say(p,"§aParkour-Start gespeichert (über dem Block).");
+            }else if(e.getAction()==Action.RIGHT_CLICK_BLOCK){
+                String target=p.isSneaking()?"parkour-finish-b":"parkour-finish-a";
+                locations.put(target,b.getLocation());
+                say(p,"§aZiellinie "+(p.isSneaking()?"B":"A")+" gespeichert.");
+            }
+            saveState();return;
+        }
 
         if(e.getAction()==Action.LEFT_CLICK_BLOCK){pos1.put(p.getUniqueId(),b.getLocation());say(p,"§dPOS1 §f"+b.getX()+" "+b.getY()+" "+b.getZ());}
         else if(e.getAction()==Action.RIGHT_CLICK_BLOCK){pos2.put(p.getUniqueId(),b.getLocation());say(p,"§dPOS2 §f"+b.getX()+" "+b.getY()+" "+b.getZ());}
@@ -1136,18 +1344,55 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             say(sender,"/wg neon save <Team> | /wg neon selection <Team> | /wg neon clear <Team> | /wg neon cleanup");
             say(sender,"/wg reset scores | /wg reset game1 | /wg candidate set <Team> <Spieler> | /wg candidates | /wg screen set|test|remove | /wg buzzer set <Team> (Knopf ansehen) | /wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
             say(sender,"/wg raw <Team> <Spiel 1-5> <Wert> | /wg rank | /wg qualify | /wg finalist <A> <B>");
-            say(sender,"/wg basket <Team> <0-6> | /wg parkour finish | /wg chest add|clear|shuffle|stop");
+            say(sender,"/wg wand game7 | /wg game7 tp|start|stop | /wg wand game8 | /wg game8 tp|start|stop|raus");
             say(sender,"GAME 3: /wg wand game3 | /wg tp game 3 | /wg game3 start|stop | /wg screen idle");
             say(sender,"GAME 4: /wg wand game4 | /wg game4 spectator | /wg tp game 4 | /wg game4 start|stop|reset");
             say(sender,"GAME 5: /wg game5 start|stop|reload|skip");
+            say(sender,"GAME 7: /wg wand game7 (links Start, rechts Ziel A, Shift-rechts Ziel B) | /wg game7 tp|start|stop");
+            say(sender,"GAME 8: /wg wand game8 (rechts markieren, links entfernen) | /wg set game8-start | /wg game8 tp|start|stop|status|retire <Team> | /wg game8 raus");
+            say(sender,"GAME 9: /wg wand game9 (links Ecke A, rechts Ecke B) | /wg set game9-spawn1|game9-spawn2|game9-spectator | /wg game9 tp|start|stop|status");
             say(sender,"/wg points <Team> | /wg points add <Team> <Zahl> | /wg spend <Team> <Kosten> <Notiz>");return true;
         }
         String cmd=args[0].toLowerCase(Locale.ROOT);
+        if(cmd.equals("game8") && args.length>=2 && args[1].equalsIgnoreCase("raus") && sender instanceof Player p){
+            String t=team(p.getUniqueId());
+            if(t!=null && Objects.equals(selected.get(t),p.getUniqueId()))retireMystery(sender,t);
+            else say(sender,"Nur der ausgewählte Finalist darf aussteigen.");
+            return true;
+        }
+        if(cmd.equals("game9")&&admin(sender)){
+            if(args.length>=2)switch(args[1].toLowerCase(Locale.ROOT)){
+                case "tp" -> {gameNine.teleport(sender);return true;}
+                case "start" -> {gameNine.start(sender);return true;}
+                case "stop" -> {gameNine.stop(sender);return true;}
+                case "status" -> {gameNine.status(sender);return true;}
+            }
+            say(sender,"/wg game9 tp|start|stop|status");return true;
+        }
         if(cmd.equals("game6")&&admin(sender)){if(args.length>=2){switch(args[1].toLowerCase(Locale.ROOT)){
             case "start" -> {startWordDuell(sender);return true;}
             case "stop" -> {stopWordDuell();say(sender,"Wortduell gestoppt.");return true;}
             case "reload" -> {loadWordQuestions();say(sender,"Wortduell-Fragen geladen: "+wordQuestions.size());return true;}
         }}say(sender,"/wg game6 start|stop|reload");return true;}
+        if(cmd.equals("game8")&&admin(sender)){
+            if(args.length>=2)switch(args[1].toLowerCase(Locale.ROOT)){
+                case "tp" -> {mysteryTeleport(sender);return true;}
+                case "start" -> {startMystery(sender);return true;}
+                case "stop" -> {finishMystery(true);return true;}
+                case "raus" -> {say(sender,"Spieler: /wg game8 raus | Moderator: /wg game8 retire <Team>");return true;}
+                case "retire" -> {if(args.length>=3)retireMystery(sender,args[2]);return true;}
+                case "status" -> {say(sender,"Mystery: "+openedChests.size()+"/50 geöffnet; am Zug "+(running&&game==8?finalists.get(mysteryTurn):"niemand")+"; Tränke="+potionRewards);return true;}
+            }
+            say(sender,"/wg game8 tp|start|stop|status|retire <Team> | /wg game8 raus (Spieler)");return true;
+        }
+        if(cmd.equals("game7")&&admin(sender)){
+            if(args.length>=2)switch(args[1].toLowerCase(Locale.ROOT)){
+                case "tp" -> {parkourTeleport(sender);return true;}
+                case "start" -> {startParkour(sender);return true;}
+                case "stop" -> {finishParkour(null,false);return true;}
+            }
+            say(sender,"/wg game7 tp|start|stop");return true;
+        }
         if(cmd.equals("game5")&&admin(sender)){if(args.length>=2){switch(args[1].toLowerCase(Locale.ROOT)){case "start"->{startEstimates(sender);return true;}case "stop"->{estimateGeneration++;estimateAccepting=false;answerDeadline=0;running=false;gameOneScreen.idle();say(sender,"Schätz mal gestoppt.");return true;}case "reload"->{loadEstimateQuestions();say(sender,"Game-5-Fragen neu geladen: "+estimateBank.size());return true;}case "skip"->{if(game==5&&running){estimateGeneration++;int gen=estimateGeneration;estimateAccepting=false;answerDeadline=0;Bukkit.getScheduler().runTaskLater(this,()->nextEstimate(gen),10L);}return true;}}}say(sender,"/wg game5 start|stop|reload|skip");return true;}
         if(cmd.equals("game4")&&admin(sender)){if(args.length>=2&&(args[1].equalsIgnoreCase("line1")||args[1].equalsIgnoreCase("line2"))){if(sender instanceof Player p)gameFour.line(p,args[1].equalsIgnoreCase("line1")?1:2);else say(sender,"Nur ingame möglich.");return true;}if(args.length>=2&&args[1].equalsIgnoreCase("spectator")){if(sender instanceof Player p)gameFour.spectator(p);else say(sender,"Nur ingame möglich.");return true;}if(args.length>=2){switch(args[1].toLowerCase(Locale.ROOT)){case "start" -> {game=4;archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();saveState();}return true;}case "stop" -> {gameFour.stop();running=false;return true;}case "reset" -> {gameFour.reset();archeryHits.clear();return true;}}}say(sender,"/wg game4 spectator|line1|line2|start|stop|reset");return true;}
         if(cmd.equals("game3")&&admin(sender)){if(args.length>=2&&args[1].equalsIgnoreCase("start")){gameThree.start(sender);return true;}if(args.length>=2&&args[1].equalsIgnoreCase("stop")){gameThree.stop();say(sender,"Rennen gestoppt.");return true;}if(args.length>=2&&args[1].equalsIgnoreCase("debug")){gameThree.toggleDebug(sender);return true;}if(args.length>=3&&args[1].equalsIgnoreCase("laps")){try{gameThree.setLaps(sender,Integer.parseInt(args[2]));}catch(NumberFormatException ex){say(sender,"/wg game3 laps <1-20>");}return true;}say(sender,"/wg game3 start|stop|debug|laps <1-20>");return true;}
@@ -1252,7 +1497,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                         qualifying.clear();raw.clear();individual.clear();quizScores.clear();
                         advantages.clear();basketballScores.clear();parkourScores.clear();mysteryScores.clear();
                         rankLast.clear();questionNumber=0;usedQuestions.clear();attemptedBuzzers.clear();
-                        finalists.clear();finaleStarted=false;manualFinalists=false;leggingsRewards.clear();selected.clear();answerDeadline=0;game1RoundEnds=0;
+                        finalists.clear();finaleStarted=false;manualFinalists=false;lastChampion=null;leggingsRewards.clear();swordRewards.clear();potionRewards.clear();selected.clear();answerDeadline=0;game1RoundEnds=0;
                         saveState();updateDisplays();say(sender,"Alle Testpunkte zurückgesetzt. Teams, Regionen und Buzzer bleiben.");return true;
                     }
                     if(args[1].equalsIgnoreCase("game1")){
@@ -1316,32 +1561,32 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                     saveState();return true;
                 }
                 case "set" -> {if(!(sender instanceof Player p)||args.length<2)break;locations.put(args[1].toLowerCase(Locale.ROOT),p.getLocation().clone());say(sender,"Position "+args[1]+" gespeichert.");saveState();return true;}
-                case "tp" -> {if(args.length>=3&&args[1].equalsIgnoreCase("game")){int g=Integer.parseInt(args[2]);if(g==3){game=3;studioLocked=false;gameThree.teleport(sender,selected,new HashMap<>(),teamColors);saveState();return true;}if(g==4){game=4;studioLocked=false;gameFour.teleport(sender,selected,new ArrayList<>(teams.keySet()));saveState();return true;}Location destination=locations.get("game"+g+"-spectator");if(destination==null){say(sender,"Spiel "+g+" hat noch keinen Teleport-Setup.");return true;}for(Player online:Bukkit.getOnlinePlayers())online.teleport(destination);return true;}if(!(sender instanceof Player p)||args.length<2)break;Location l=locations.get(args[1].toLowerCase(Locale.ROOT));if(l==null){say(sender,"Ort nicht gesetzt.");return true;}p.teleport(l);return true;}
+                case "tp" -> {if(args.length>=3&&args[1].equalsIgnoreCase("game")){int g=Integer.parseInt(args[2]);if(g==9){gameNine.teleport(sender);return true;}if(g==7){parkourTeleport(sender);return true;}if(g==8){mysteryTeleport(sender);return true;}if(g==3){game=3;studioLocked=false;gameThree.teleport(sender,selected,new HashMap<>(),teamColors);saveState();return true;}if(g==4){game=4;studioLocked=false;gameFour.teleport(sender,selected,new ArrayList<>(teams.keySet()));saveState();return true;}Location destination=locations.get("game"+g+"-spectator");if(destination==null){say(sender,"Spiel "+g+" hat noch keinen Teleport-Setup.");return true;}for(Player online:Bukkit.getOnlinePlayers())online.teleport(destination);return true;}if(!(sender instanceof Player p)||args.length<2)break;Location l=locations.get(args[1].toLowerCase(Locale.ROOT));if(l==null){say(sender,"Ort nicht gesetzt.");return true;}p.teleport(l);return true;}
                 case "select" -> {if(args.length<2)break;
                     boolean enable=args[1].equalsIgnoreCase("on");
                     selectionEnabled=enable;selectionTicks.clear();
                     if(enable){selected.clear();}
                     else {returnUnselectedToCages();studioLocked=true;}
                     saveState();say(sender,"Spielerwahl "+(selectionEnabled?"aktiv":"aus"));return true;}
-                case "game" -> {if(game==6)stopWordDuell();estimateGeneration++;estimateAccepting=false;answerDeadline=0;if(game==4)gameFour.stop();if(game==3)gameThree.stop();if(game==2)restoreGame2Inventories();if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;if(game==g){say(sender,"Spiel "+g+" ist bereits gewählt. Kandidaten bleiben erhalten ("+selected.size()+" registriert).");return true;}running=false;game=g;selected.clear();selectionTicks.clear();buzzed=null;attemptedBuzzers.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]+". Kandidaten für das neue Spiel neu wählen.");saveState();return true;}
-                case "start" -> {if(game==6){startWordDuell(sender);return true;}if(game==5){startEstimates(sender);return true;}if(game==3){gameThree.start(sender);return true;}if(game==4){archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();broadcast("§dSTART: "+GAMES[game-1]);saveState();}return true;}if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){if(mysteryChestValues.size()!=50){say(sender,"Bitte zuerst 50 Truhen markieren.");return true;}setupMystery(sender);}if(game==7){if(!locations.containsKey("parkour-finish")){say(sender,"Parkour-Ziel fehlt.");return true;}parkourScores.clear();parkourFinishes.clear();}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;if(game==1||game==2){teleportCandidatesToSelection();}if(game==2){prepareGame2Inventories();}if(game==1){say(sender,"Game 1 startet mit "+selected.size()+" registrierten Kandidaten. /wg candidates zeigt die Zuordnung.");if(selected.isEmpty())say(sender,"ACHTUNG: Keine Kandidaten gewählt! Bitte /wg candidate set <Team> <Spieler> nutzen.");}
+                case "game" -> {if(game==9&&gameNine!=null&&gameNine.isActive())gameNine.stop(sender);if(game==7&&running)finishParkour(null,false);if(game==8&&running)finishMystery(true);if(game==6)stopWordDuell();estimateGeneration++;estimateAccepting=false;answerDeadline=0;if(game==4)gameFour.stop();if(game==3)gameThree.stop();if(game==2)restoreGame2Inventories();if(args.length<2)break;int g=Integer.parseInt(args[1]);if(g<1||g>9)break;if(game==g){say(sender,"Spiel "+g+" ist bereits gewählt. Kandidaten bleiben erhalten ("+selected.size()+" registriert).");return true;}running=false;game=g;selected.clear();selectionTicks.clear();buzzed=null;attemptedBuzzers.clear();say(sender,"Spiel "+game+": "+GAMES[game-1]+". Kandidaten für das neue Spiel neu wählen.");saveState();return true;}
+                case "start" -> {if(game==9){gameNine.start(sender);return true;}if(game==6){startWordDuell(sender);return true;}if(game==5){startEstimates(sender);return true;}if(game==3){gameThree.start(sender);return true;}if(game==4){archeryHits.clear();archeryFinishTimes.clear();running=gameFour.start(sender);if(running){startMillis=System.currentTimeMillis();broadcast("§dSTART: "+GAMES[game-1]);saveState();}return true;}if(game==0){say(sender,"Zuerst /wg game <1-9>.");return true;}if(game>=6&&finalists.size()!=2){say(sender,"Finalteams fehlen: /wg qualify oder /wg finalist.");return true;}if(game==8){startMystery(sender);return true;}if(game==7){startParkour(sender);return true;}running=true;startMillis=System.currentTimeMillis();selectionEnabled=false;if(game==1||game==2){teleportCandidatesToSelection();}if(game==2){prepareGame2Inventories();}if(game==1){say(sender,"Game 1 startet mit "+selected.size()+" registrierten Kandidaten. /wg candidates zeigt die Zuordnung.");if(selected.isEmpty())say(sender,"ACHTUNG: Keine Kandidaten gewählt! Bitte /wg candidate set <Team> <Spieler> nutzen.");}
                     if(game==1||game==2||game==5){game1QuestionActive=false;quizScores.clear();usedQuestions.clear();questionNumber=0;gameOneScreen.idle();Bukkit.getScheduler().runTaskLater(this,this::nextQuestion,30L);}
                     if(game==3){raceProgress.clear();raceFinishes.clear();}
                     if(game==4){archeryHits.clear();archeryFinishTimes.clear();}
                     broadcast("§dSTART: "+GAMES[game-1]);saveState();return true;}
-                case "stop" -> {if(game==6){stopWordDuell();say(sender,"Wortduell gestoppt.");return true;}if(game==5){estimateGeneration++;estimateAccepting=false;answerDeadline=0;}if(game==4)gameFour.stop();if(game==3){gameThree.stop();running=false;gameOneScreen.idle();say(sender,"Rennen gestoppt.");return true;}if(game==2){game2Accepting=false;game2Revealing=false;answerDeadline=0;restoreGame2Inventories();}if(game==7&&running){stopParkour();return true;}if(game==8&&running){finishMystery();return true;}running=false;gameOneScreen.idle();broadcast("Spiel gestoppt.");saveState();return true;}
+                case "stop" -> {if(game==9){gameNine.stop(sender);return true;}if(game==6){stopWordDuell();say(sender,"Wortduell gestoppt.");return true;}if(game==5){estimateGeneration++;estimateAccepting=false;answerDeadline=0;}if(game==4)gameFour.stop();if(game==3){gameThree.stop();running=false;gameOneScreen.idle();say(sender,"Rennen gestoppt.");return true;}if(game==2){game2Accepting=false;game2Revealing=false;answerDeadline=0;restoreGame2Inventories();}if(game==7&&running){finishParkour(null,false);return true;}if(game==8&&running){finishMystery(true);return true;}running=false;gameOneScreen.idle();broadcast("Spiel gestoppt.");saveState();return true;}
                 case "raw" -> {if(args.length<4)break;String t=args[1];int n=Integer.parseInt(args[2]),v=Integer.parseInt(args[3]);if(!teams.containsKey(t)||n<1||n>5)break;raw.computeIfAbsent(t,k->new HashMap<>()).put(n,v);say(sender,"Rohwertung "+t+" Spiel "+n+" = "+v);rankRound(sender,n);return true;}
                 case "rank" -> {rankRound(sender,5);return true;}
                 case "qualify" -> {finalizeTeams(sender);return true;}
                 case "finalist" -> {if(args.length<3||!teams.containsKey(args[1])||!teams.containsKey(args[2])||args[1].equals(args[2]))break;finalists=new ArrayList<>(List.of(args[1],args[2]));manualFinalists=true;finaleStarted=false;advantages.clear();for(String t:finalists)advantages.put(t,0);broadcast("Finale: "+finalists);saveState();return true;}
                 case "basket" -> {say(sender,"Basketball wurde durch Wortduell ersetzt.");return true;}
-                case "parkour" -> {if(args.length<2||!args[1].equalsIgnoreCase("finish")||!(sender instanceof Player p)||game!=7||!running)break;Location goal=locations.get("parkour-finish");if(goal==null)break;p.teleport(goal);return true;}
+                case "parkour" -> {say(sender,"Parkour über /wg wand game7 und /wg game7 tp|start|stop verwalten.");return true;}
                 case "chest" -> {if(args.length<2)break;switch(args[1].toLowerCase(Locale.ROOT)){
-                    case "add" -> {if(!(sender instanceof Player p))break;Block b=p.getTargetBlockExact(6);if(b==null||!(b.getType()==Material.CHEST||b.getType()==Material.TRAPPED_CHEST)){say(sender,"Schaue auf eine Truhe (max 6 Blöcke).");return true;}mysteryChestValues.putIfAbsent(key(b.getLocation()),0);say(sender,"Truhe markiert: "+mysteryChestValues.size()+"/50");saveState();return true;}
+                    case "add" -> {if(!(sender instanceof Player p))break;Block b=p.getTargetBlockExact(6);if(b==null||!(b.getType()==Material.CHEST||b.getType()==Material.TRAPPED_CHEST)){say(sender,"Schaue auf eine Truhe (max 6 Blöcke).");return true;}if(mysteryChestValues.size()>=50&&!mysteryChestValues.containsKey(key(b.getLocation()))){say(sender,"Bereits 50 Kisten markiert.");return true;}mysteryChestValues.putIfAbsent(key(b.getLocation()),0);say(sender,"Truhe markiert: "+mysteryChestValues.size()+"/50");saveState();return true;}
                     case "clear" -> {mysteryChestValues.clear();openedChests.clear();saveState();say(sender,"Truhenmarkierungen gelöscht.");return true;}
                     case "shuffle" -> {setupMystery(sender);return true;}
-                    case "stop" -> {if(!(sender instanceof Player p))break;String t=team(p.getUniqueId());if(t!=null)mysteryStopped.put(t,true);return true;}
-                    case "retire" -> {if(args.length<3||!finalTeam(args[2]))break;mysteryStopped.put(args[2],true);broadcast(args[2]+" steigt aus und behält seine Mystery-Punkte!");if(finalists.stream().allMatch(t->mysteryStopped.getOrDefault(t,false)))finishMystery();return true;}
+                    case "stop" -> {say(sender,"Zum Aussteigen: /wg game8 raus (Finalist). Zum Abbrechen: /wg game8 stop (OP).");return true;}
+                    case "retire" -> {if(args.length>=3)retireMystery(sender,args[2]);return true;}
                 }return true;}
                 case "points" -> {if(args.length==2){say(sender,args[1]+" = "+advantages.getOrDefault(args[1],0)+" Vorteilspunkte (ausgebbar: "+Math.max(0,advantages.getOrDefault(args[1],0))+")");return true;}if(args.length>=4&&args[1].equalsIgnoreCase("add")){String t=args[2];if(!teams.containsKey(t))break;advantages.merge(t,Integer.parseInt(args[3]),Integer::sum);saveState();say(sender,"Punkte korrigiert.");return true;}return true;}
                 case "spend" -> {if(args.length<4)break;String t=args[1];int cost=Integer.parseInt(args[2]);if(!finalTeam(t)||cost<=0||Math.max(0,advantages.getOrDefault(t,0))<cost){say(sender,"Nicht genügend Punkte.");return true;}advantages.merge(t,-cost,Integer::sum);broadcast(t+" kauft "+String.join(" ",Arrays.copyOfRange(args,3,args.length))+" für "+cost+" Punkte.");saveState();return true;}
@@ -1372,9 +1617,12 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         say(p,"Gekauft: "+item+" für "+cost+" Punkte. Rest: "+advantages.get(t));p.playSound(p.getLocation(),"wolfsfell.purchase",1f,1f);saveState();
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
-        if(args.length==1)return Arrays.stream(new String[]{"screen","game3","game5","game6","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==1)return Arrays.stream(new String[]{"screen","game3","game5","game6","game7","game8","game9","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         if(args.length==2&&args[0].equalsIgnoreCase("game3"))return List.of("start","stop","debug","laps");
         if(args.length==2&&args[0].equalsIgnoreCase("game6"))return List.of("start","stop","reload");
+        if(args.length==2&&args[0].equalsIgnoreCase("game7"))return List.of("tp","start","stop");
+        if(args.length==2&&args[0].equalsIgnoreCase("game9"))return List.of("tp","start","stop","status");
+        if(args.length==2&&args[0].equalsIgnoreCase("game8"))return List.of("tp","start","stop","status","raus","retire");
         if(args.length==2&&args[0].equalsIgnoreCase("screen"))return List.of("set","test","remove","idle");
         if(args.length==2&&args[0].equalsIgnoreCase("candidate"))return List.of("set");
         if(args.length==3&&args[0].equalsIgnoreCase("candidate")&&args[1].equalsIgnoreCase("set"))
@@ -1391,7 +1639,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(args.length==2&&args[0].equalsIgnoreCase("target"))return List.of("add");
         if(args.length==2&&args[0].equalsIgnoreCase("checkpoint"))return List.of("add","clear");
         if(args.length==2&&args[0].equalsIgnoreCase("team"))return List.of("create","join","leave","delete","color","list");
-        if(args.length==2&&args[0].equalsIgnoreCase("wand"))return List.of("region","game3");
+        if(args.length==2&&args[0].equalsIgnoreCase("wand"))return List.of("region","game3","game4","game7","game8","game9");
         if(args.length==2&&args[0].equalsIgnoreCase("neon"))return List.of("save","selection","clear","cleanup");
         if(args.length==3&&args[0].equalsIgnoreCase("neon"))return new ArrayList<>(teams.keySet());
         if(args.length==2&&args[0].equalsIgnoreCase("region"))return List.of("save");
