@@ -172,6 +172,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         Bukkit.getScheduler().runTaskLater(this, () -> { clearLegacyNeonDisplays(); restoreRegionNeon(); refreshAllArmor(); refreshBuzzerColors(); }, 20L);
         clock = Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         Bukkit.getScheduler().runTaskTimer(this,this::updateDisplays,40L,40L);
+        Bukkit.getScheduler().runTaskTimer(this,this::syncTeamOutfits,100L,100L);
         getLogger().info("Wolfsfell Gameshow 0.1 loaded; " + teams.size() + " teams");
     }
     void gameFourHit(String team,Player player,int hits){archeryHits.put(team,hits);individual.merge(player.getUniqueId(),1,Integer::sum);if(hits==10)archeryFinishTimes.put(team,System.currentTimeMillis());}
@@ -785,8 +786,11 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             for(var entry:teams.entrySet()){
                 Team scoreTeam=board.registerNewTeam("wg"+teams.keySet().stream().toList().indexOf(entry.getKey()));
                 scoreTeam.setColor(chatColor(entry.getKey()));
+                scoreTeam.setPrefix(chatColor(entry.getKey()).toString());
                 for(UUID member:entry.getValue()){
-                    String name=Bukkit.getOfflinePlayer(member).getName();if(name!=null)scoreTeam.addEntry(name);
+                    Player onlineMember=Bukkit.getPlayer(member);
+                    String name=onlineMember!=null?onlineMember.getName():Bukkit.getOfflinePlayer(member).getName();
+                    if(name!=null)scoreTeam.addEntry(name);
                 }
             }
             Objective obj=board.registerNewObjective("wg","dummy","§5§lWOLFSFELL");obj.setDisplaySlot(DisplaySlot.SIDEBAR);
@@ -1189,15 +1193,41 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         case "PINK" -> Color.fromRGB(255,100,190); case "CYAN" -> Color.fromRGB(50,225,235);
         default -> Color.WHITE;
     }; }
+    // Keep team visuals consistent after inventories are restored or changed.
+    // Never replace equipment during the UHC finale or the inventory-based Game 2.
+    private boolean canEquipTeamOutfit() {
+        return !(game==2 && (running || !game2Inventories.isEmpty()))
+                && !(gameNine!=null && gameNine.isActive());
+    }
+    private boolean isGameshowChestplate(ItemStack item) {
+        return item!=null && item.getType()==Material.LEATHER_CHESTPLATE
+                && item.hasItemMeta() && item.getItemMeta().hasDisplayName()
+                && item.getItemMeta().getDisplayName().contains("· Gameshow");
+    }
     private void equipTeam(Player p) {
-        String t=team(p.getUniqueId()); if(t==null)return;
+        if(!canEquipTeamOutfit())return;
+        String t=team(p.getUniqueId());
+        if(t==null)return;
+        ItemStack existing=p.getInventory().getChestplate();
+        // Do not destroy someone's unrelated chestplate.
+        if(existing!=null && existing.getType()!=Material.AIR && !isGameshowChestplate(existing))return;
+        Color color=rgb(teamColors.getOrDefault(t,"PURPLE").toUpperCase(Locale.ROOT));
+        if(isGameshowChestplate(existing)){
+            org.bukkit.inventory.meta.LeatherArmorMeta old=(org.bukkit.inventory.meta.LeatherArmorMeta)existing.getItemMeta();
+            if(old.getColor().equals(color) && org.bukkit.ChatColor.stripColor(old.getDisplayName()).startsWith(t+" "))return;
+        }
         ItemStack chest=new ItemStack(Material.LEATHER_CHESTPLATE);
         org.bukkit.inventory.meta.LeatherArmorMeta m=(org.bukkit.inventory.meta.LeatherArmorMeta)chest.getItemMeta();
-        m.setColor(rgb(teamColors.getOrDefault(t,"PURPLE")));
+        m.setColor(color);
         m.setDisplayName(chatColor(t)+t+" §7· Gameshow");
-        chest.setItemMeta(m);p.getInventory().setChestplate(chest);
+        chest.setItemMeta(m);
+        p.getInventory().setChestplate(chest);
     }
-    private void refreshAllArmor() { for(Player p:Bukkit.getOnlinePlayers())equipTeam(p); }
+    private void syncTeamOutfits() {
+        if(!canEquipTeamOutfit())return;
+        for(Player player:Bukkit.getOnlinePlayers())equipTeam(player);
+    }
+    private void refreshAllArmor() { syncTeamOutfits(); }
     private ItemStack setupWand(String mode) {
         ItemStack item=new ItemStack(Material.BLAZE_ROD);
         ItemMeta meta=item.getItemMeta();meta.setDisplayName("§d§lWolfsfell §fSetup-Wand §8["+mode+"]");
