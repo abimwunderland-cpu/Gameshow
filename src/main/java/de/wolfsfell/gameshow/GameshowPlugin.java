@@ -263,11 +263,12 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 Location[] home=cages.get("cage:"+assigned.toLowerCase(Locale.ROOT));
                 Location[] choice=cages.get("selection:"+assigned.toLowerCase(Locale.ROOT));
                 boolean canChoose=selectionEnabled && (!selected.containsKey(assigned) || Objects.equals(selected.get(assigned),e.getPlayer().getUniqueId()));
-                boolean selectedPlayer=Objects.equals(selected.get(assigned),e.getPlayer().getUniqueId());
-                // During selection, every eligible team member may walk to the central spot.
-                // Once selected, only the captain may leave their cage.
+                // A selected player may leave the cage ONLY for the currently active game.
+                // Selecting someone in an earlier round must not permanently unlock their cage.
+                boolean activeContestant=running && game>=1 && game<=8 && !completedGames.contains(game)
+                    && Objects.equals(selected.get(assigned),e.getPlayer().getUniqueId());
                 boolean allowed=home==null || inside(e.getTo(),home[0],home[1]) ||
-                    canChoose || selectedPlayer;
+                    canChoose || activeContestant;
                 if(!allowed && e.getFrom().getBlock().getLocation().distanceSquared(e.getTo().getBlock().getLocation())>0){
                     e.setTo(e.getFrom());return;
                 }
@@ -924,26 +925,55 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
     }
 
-    /** Move everyone back after a completed game, not after a temporary stop or UHC finale. */
-    private void returnEveryoneToCages(){
+    /** Locate a team cage even if the organizer marked the region but forgot /wg set team:TeamX. */
+    private Location cageHome(String teamName){
+        String normalized=teamName.toLowerCase(Locale.ROOT);
+        Location[] bounds=cages.get("cage:"+normalized);
+        Location saved=locations.get("team:"+normalized);
+        if(bounds==null)return saved==null?null:saved.clone();
+        if(saved!=null && inside(saved,bounds[0],bounds[1]))return saved.clone();
+        Location a=bounds[0], b=bounds[1];
+        if(a.getWorld()==null||!a.getWorld().equals(b.getWorld()))return null;
+        org.bukkit.World world=a.getWorld();
+        int minX=Math.min(a.getBlockX(),b.getBlockX()),maxX=Math.max(a.getBlockX(),b.getBlockX());
+        int minY=Math.min(a.getBlockY(),b.getBlockY()),maxY=Math.max(a.getBlockY(),b.getBlockY());
+        int minZ=Math.min(a.getBlockZ(),b.getBlockZ()),maxZ=Math.max(a.getBlockZ(),b.getBlockZ());
+        int centerX=(minX+maxX)/2,centerZ=(minZ+maxZ)/2;
+        // Prefer an air column with a solid floor, at least two blocks high, within the marked cage.
+        for(int y=minY;y+1<=maxY;y++){
+            for(int x=minX;x<=maxX;x++)for(int z=minZ;z<=maxZ;z++){
+                if(!world.getBlockAt(x,y,z).isPassable() || !world.getBlockAt(x,y+1,z).isPassable())continue;
+                if(world.getBlockAt(x,y-1,z).isPassable())continue;
+                Location loc=new Location(world,x+0.5,y,z+0.5);
+                if(inside(loc,a,b))return loc;
+            }
+        }
+        // Mis-marked flat regions are reported instead of teleporting players into walls.
+        return null;
+    }
+    /** Teleport every online participant to their team's own marked cage. */
+    private int returnEveryoneToCages(){
+        int count=0;
         for(Player p:Bukkit.getOnlinePlayers()){
             String t=team(p.getUniqueId());if(t==null)continue;
-            Location home=locations.get("team:"+t.toLowerCase(Locale.ROOT));
-            if(home==null)home=locations.get("team:"+t);
-            if(home!=null){p.teleport(home.clone());p.setFallDistance(0);}
+            Location home=cageHome(t);
+            if(home!=null){if(p.teleport(home)){p.setFallDistance(0);count++;}}
+            else getLogger().warning("Kein sicherer Cage-Spawn fuer Team "+t+" (Region/Spawn prüfen).");
         }
+        return count;
     }
     void uhcMarkGameNineCompleted(){completeGame(9);}
     private void completeGame(int number){
         if(number<1||number>9)return;
         completedGames.add(number);
+        if(number!=9){selectionEnabled=false;studioLocked=true;}
         refreshGameBoard();saveState();
         if(number==9)return;
         int version=++cageReturnSequence;
         Bukkit.getScheduler().runTaskLater(this,()->{
             if(version!=cageReturnSequence||game==9&&gameNine!=null&&gameNine.isActive())return;
-            returnEveryoneToCages();
-            broadcast("§7Alle Teams sind wieder in ihren Teamkäfigen.");
+            int moved=returnEveryoneToCages();
+            broadcast("§7"+moved+" Spieler zurück in ihre Teamkäfige teleportiert.");
         },60L);
     }
     private void refreshGameBoard(){
@@ -987,8 +1017,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         for(Player player:Bukkit.getOnlinePlayers()){
             String t=team(player.getUniqueId());
             if(t==null || Objects.equals(selected.get(t),player.getUniqueId()))continue;
-            Location home=locations.get("team:"+t.toLowerCase(Locale.ROOT));
-            if(home==null)home=locations.get("team:"+t);
+            Location home=cageHome(t);
             if(home!=null)player.teleport(home);
         }
     }
@@ -1616,6 +1645,23 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             String id=args[2].toLowerCase(Locale.ROOT);
             if((id.startsWith("cage:")||id.startsWith("selection:")) && teams.keySet().stream().noneMatch(t->t.equalsIgnoreCase(id.substring(id.indexOf(':')+1)))){say(sender,"Team existiert nicht.");return true;}
             cages.put(id,new Location[]{a.clone(),b.clone()});if(id.startsWith("selection:")){String team=teams.keySet().stream().filter(t->t.equalsIgnoreCase(id.substring(10))).findFirst().orElse(null);if(team!=null&&neonRegions.containsKey("selection:"+team)){clearRegionNeon("selection:"+team);neonRegions.put("selection:"+team,new Location[]{a.clone(),b.clone()});renderNeonRegion("selection:"+team);}}saveState();say(sender,"Region "+id+" gespeichert.");return true;
+        }
+        if(cmd.equals("cages")&&admin(sender)){
+            if(args.length>=2&&args[1].equalsIgnoreCase("tp")){
+                selectionEnabled=false;studioLocked=true;selected.clear();saveState();
+                int moved=returnEveryoneToCages();
+                say(sender,"Cage-Teleport: "+moved+" Online-Spieler teleportiert. Auswahl deaktiviert; Cages gesperrt.");
+                return true;
+            }
+            if(args.length>=2&&args[1].equalsIgnoreCase("status")){
+                for(String t:teams.keySet()){
+                    Location[] box=cages.get("cage:"+t.toLowerCase(Locale.ROOT));
+                    Location dest=cageHome(t);
+                    say(sender,"Team "+t+": Region="+(box==null?"FEHLT":"OK")+", Spawn="+(dest==null?"FEHLT / NICHT SICHER":"OK"));
+                }
+                return true;
+            }
+            say(sender,"/wg cages tp | /wg cages status");return true;
         }
         if(cmd.equals("studio")&&admin(sender)){
             if(args.length<2){say(sender,"/wg studio lock|unlock|status");return true;}
