@@ -51,6 +51,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     private static final int[] RANK_POINTS = {100,80,65,50,40,30,20,10};
     private final LinkedHashMap<String, LinkedHashSet<UUID>> teams = new LinkedHashMap<>();
     private final Map<String, String> teamColors = new HashMap<>();
+    // Keep one scoreboard per viewer: recreating it every 2 seconds makes glowing briefly white.
+    private final Map<UUID, Scoreboard> stablePlayerBoards = new HashMap<>();
     private final Map<UUID, String> wandModes = new HashMap<>();
     private final Map<UUID, Location> pos1 = new HashMap<>(), pos2 = new HashMap<>();
     private final Map<String, Location[]> cages = new HashMap<>();
@@ -495,7 +497,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         playFinalSound(Sound.UI_TOAST_CHALLENGE_COMPLETE,0.85f,1.15f);saveState();updateDisplays();completeGame(8);
     }
     @EventHandler public void onJoin(PlayerJoinEvent e) { Bukkit.getScheduler().runTaskLater(this,()->{restoreGame2Inventory(e.getPlayer());updateDisplays();},20); }
-    @EventHandler public void onQuit(PlayerQuitEvent e) { if(e.getPlayer().getUniqueId().equals(buzzed))buzzed=null; }
+    @EventHandler public void onQuit(PlayerQuitEvent e) { stablePlayerBoards.remove(e.getPlayer().getUniqueId()); if(e.getPlayer().getUniqueId().equals(buzzed))buzzed=null; }
     @EventHandler public void onChat(AsyncPlayerChatEvent e) {
         if(e.isCancelled())return;
         if(game==6 && running && finaleStarted){
@@ -782,17 +784,31 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             side.append("§dTOP 5 SPIELER\n");for(int i=0;i<Math.min(5,people.size());i++)side.append("§f").append(i+1).append(". ").append(team(people.get(i))==null?ChatColor.WHITE:chatColor(team(people.get(i)))).append(Optional.ofNullable(Bukkit.getOfflinePlayer(people.get(i)).getName()).orElse("?" )).append(" §d").append(individual.get(people.get(i))).append("\n");
             side.append("§7Du: #").append(people.indexOf(p.getUniqueId())+1).append(" §f").append(individual.getOrDefault(p.getUniqueId(),0));
             // Sidebar scoreboard is refreshed with unique line entries; limit is 15 lines.
-            Scoreboard board=Bukkit.getScoreboardManager().getNewScoreboard();
+            Scoreboard board=stablePlayerBoards.computeIfAbsent(p.getUniqueId(), id -> Bukkit.getScoreboardManager().getNewScoreboard());
+            int teamIndex=0;
             for(var entry:teams.entrySet()){
-                Team scoreTeam=board.registerNewTeam("wg"+teams.keySet().stream().toList().indexOf(entry.getKey()));
-                scoreTeam.setColor(chatColor(entry.getKey()));
-                scoreTeam.setPrefix(chatColor(entry.getKey()).toString());
+                String teamId="wg"+teamIndex++;
+                Team scoreTeam=board.getTeam(teamId);
+                if(scoreTeam==null)scoreTeam=board.registerNewTeam(teamId);
+                ChatColor color=chatColor(entry.getKey());
+                scoreTeam.setColor(color);
+                scoreTeam.setPrefix(color.toString());
+                scoreTeam.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS);
+                Set<String> wanted=new HashSet<>();
                 for(UUID member:entry.getValue()){
                     Player onlineMember=Bukkit.getPlayer(member);
                     String name=onlineMember!=null?onlineMember.getName():Bukkit.getOfflinePlayer(member).getName();
-                    if(name!=null)scoreTeam.addEntry(name);
+                    if(name!=null){wanted.add(name);scoreTeam.addEntry(name);}
+                }
+                for(String current:new HashSet<>(scoreTeam.getEntries()))if(!wanted.contains(current))scoreTeam.removeEntry(current);
+            }
+            for(Team obsolete:new ArrayList<>(board.getTeams())){
+                if(obsolete.getName().matches("wg[0-9]+")){
+                    try{if(Integer.parseInt(obsolete.getName().substring(2))>=teamIndex)obsolete.unregister();}catch(NumberFormatException ignored){}
                 }
             }
+            Objective prior=board.getObjective("wg");
+            if(prior!=null)prior.unregister();
             Objective obj=board.registerNewObjective("wg","dummy","§5§lWOLFSFELL");obj.setDisplaySlot(DisplaySlot.SIDEBAR);
             String[] lines=side.toString().split("\n");int n=Math.min(15,lines.length);
             for(int i=0;i<n;i++)obj.getScore(lines[i].substring(0,Math.min(35,lines[i].length()))+"§"+"0123456789abcdef".charAt(i)).setScore(n-i);
@@ -1177,9 +1193,15 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         for(String t:finalists)mysteryScores.put(t,0);
         say(s,"50 Kisten neu gemischt: je 10 mal -2, -1, 0, +1, +2.");saveState();
     }
+    private String resolvedTeamColor(String t) {
+        String stored=teamColors.get(t);
+        if(stored!=null && Arrays.asList(palette).contains(stored.toUpperCase(Locale.ROOT)))return stored.toUpperCase(Locale.ROOT);
+        int index=new ArrayList<>(teams.keySet()).indexOf(t);
+        return palette[Math.max(0,index)%palette.length];
+    }
     private ChatColor chatColor(String t) {
-        try { return ChatColor.valueOf(teamColors.getOrDefault(t,"WHITE")); }
-        catch (IllegalArgumentException ex) { return ChatColor.WHITE; }
+        try { return ChatColor.valueOf(resolvedTeamColor(t)); }
+        catch (IllegalArgumentException ex) { return ChatColor.LIGHT_PURPLE; }
     }
     private Material armorColor(String t) {
         String c=teamColors.getOrDefault(t,"WHITE");
@@ -1209,9 +1231,13 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         String t=team(p.getUniqueId());
         if(t==null)return;
         ItemStack existing=p.getInventory().getChestplate();
-        // Do not destroy someone's unrelated chestplate.
-        if(existing!=null && existing.getType()!=Material.AIR && !isGameshowChestplate(existing))return;
-        Color color=rgb(teamColors.getOrDefault(t,"PURPLE").toUpperCase(Locale.ROOT));
+        // Preserve a pre-existing chestplate in the inventory instead of silently hiding the team uniform.
+        if(existing!=null && existing.getType()!=Material.AIR && !isGameshowChestplate(existing)){
+            if(p.getInventory().firstEmpty()<0)return; // Never discard personal items.
+            p.getInventory().setChestplate(null);
+            p.getInventory().addItem(existing.clone());
+        }
+        Color color=rgb(resolvedTeamColor(t));
         if(isGameshowChestplate(existing)){
             org.bukkit.inventory.meta.LeatherArmorMeta old=(org.bukkit.inventory.meta.LeatherArmorMeta)existing.getItemMeta();
             if(old.getColor().equals(color) && org.bukkit.ChatColor.stripColor(old.getDisplayName()).startsWith(t+" "))return;
@@ -1222,6 +1248,29 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         m.setDisplayName(chatColor(t)+t+" §7· Gameshow");
         chest.setItemMeta(m);
         p.getInventory().setChestplate(chest);
+    }
+    // The team shirt is locked in normal games, including shift-click, armor-slot clicks and drag.
+    // Kit-UHC (and the inventory-based Game 2) are exempt so their real armor works.
+    @EventHandler(priority=EventPriority.HIGHEST, ignoreCancelled=false)
+    public void onTeamArmorClick(InventoryClickEvent e) {
+        if(!(e.getWhoClicked() instanceof Player p) || !canEquipTeamOutfit() || team(p.getUniqueId())==null)return;
+        boolean armorSlot=e.getClickedInventory() instanceof org.bukkit.inventory.PlayerInventory && e.getSlot()==38;
+        boolean movingShirt=isGameshowChestplate(e.getCurrentItem()) || isGameshowChestplate(e.getCursor());
+        if(armorSlot || movingShirt){e.setCancelled(true);Bukkit.getScheduler().runTask(this,()->equipTeam(p));}
+    }
+    @EventHandler(priority=EventPriority.HIGHEST, ignoreCancelled=false)
+    public void onTeamArmorDrag(InventoryDragEvent e) {
+        if(!(e.getWhoClicked() instanceof Player p) || !canEquipTeamOutfit() || team(p.getUniqueId())==null)return;
+        if(e.getRawSlots().contains(6) || e.getInventorySlots().contains(38)){
+            e.setCancelled(true);Bukkit.getScheduler().runTask(this,()->equipTeam(p));
+        }
+    }
+    @EventHandler(priority=EventPriority.HIGHEST, ignoreCancelled=false)
+    public void onTeamShirtDrop(PlayerDropItemEvent e) {
+        if(!canEquipTeamOutfit() || team(e.getPlayer().getUniqueId())==null)return;
+        if(isGameshowChestplate(e.getItemDrop().getItemStack())){
+            e.setCancelled(true);Bukkit.getScheduler().runTask(this,()->equipTeam(e.getPlayer()));
+        }
     }
     private void syncTeamOutfits() {
         if(!canEquipTeamOutfit())return;
