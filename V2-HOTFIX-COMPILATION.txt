@@ -1,0 +1,9 @@
+WOLFSFELL GAMESHOW V2 - BUILD HOTFIX
+
+Fehler der letzten Source: GameThreeRace.java Zeile 58, //-Kommentar enthielt aus Versehen finishA=y.getLocation("finish.a"); und den schliessenden Methodenblock. Der folgende Methodenkopf in Zeile 59 war daher ein "illegal start of expression".
+
+Fix: finishA-Zuweisung und weitere load()-Anweisungen wieder als Code gesetzt; die zwei Methoden load() und save() sind wieder sauber getrennt.
+
+Geprueft: Java 21 Compiler Parser meldet SYNTAX ERRORS=0 fuer alle 5 Java-Dateien. Maven-/Paper-API-Kompilierung und Ingame-Test konnten hier nicht ausgefuehrt werden.
+
+Github: ZIP entpacken, enthaltene Dateien in die Wurzel des Repositories hochladen und vorherige Version ersetzen. Dann Actions erneut pruefen. Resourcepack der V2 bleibt unveraendert.
