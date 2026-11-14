@@ -23,6 +23,7 @@ import java.util.*;
 final class GameFourTarget implements Listener {
     private final GameshowPlugin plugin;
     private final NamespacedKey wandKey;
+    private final NamespacedKey issuedKey;
     private final File file;
     private final Map<String,Location> spawns=new HashMap<>();
     private final Map<String,Set<String>> targets=new HashMap<>();
@@ -37,14 +38,39 @@ final class GameFourTarget implements Listener {
     private int currentHeat=1, totalHeats=1;
     Set<String> participatingTeams(){return new LinkedHashSet<>(candidates.keySet());}
     boolean hasMoreHeats(){return currentHeat<totalHeats;}
-    GameFourTarget(GameshowPlugin plugin){this.plugin=plugin;wandKey=new NamespacedKey(plugin,"game4_wand");file=new File(plugin.getDataFolder(),"game4.yml");load();Bukkit.getPluginManager().registerEvents(this,plugin);}
+    GameFourTarget(GameshowPlugin plugin){this.plugin=plugin;wandKey=new NamespacedKey(plugin,"game4_wand");issuedKey=new NamespacedKey(plugin,"game4_issued");file=new File(plugin.getDataFolder(),"game4.yml");load();Bukkit.getPluginManager().registerEvents(this,plugin);}
     private String key(Location l){return l.getWorld().getUID()+":"+l.getBlockX()+":"+l.getBlockY()+":"+l.getBlockZ();}
     private void msg(CommandSender s,String m){s.sendMessage("§d[Zielwasser] §f"+m);}
-    void wand(Player p){ItemStack item=new ItemStack(Material.BLAZE_ROD);ItemMeta meta=item.getItemMeta();meta.setDisplayName("§dGame 4 Setup-Stab");meta.getPersistentDataContainer().set(wandKey,PersistentDataType.BYTE,(byte)1);item.setItemMeta(meta);p.getInventory().addItem(item);msg(p,"Linksklick: Spawn 1-8 | Rechtsklick: Ziele 1-80 (je 10 pro Bahn) | Schleichen+Linksklick: letzten Eintrag rückgängig. Zuschauer: /wg game4 spectator");}
+    void wand(Player p){ItemStack item=new ItemStack(Material.BLAZE_ROD);ItemMeta meta=item.getItemMeta();meta.setDisplayName("§dGame 4 Setup-Stab");meta.getPersistentDataContainer().set(wandKey,PersistentDataType.BYTE,(byte)1);item.setItemMeta(meta);p.getInventory().addItem(item);msg(p,"Linksklick: Spawn 1-16 | Rechtsklick: Ziele 1-160 (je 10 pro Bahn) | Schleichen+Linksklick: letzten Eintrag rückgängig. Zuschauer: /wg game4 spectator");}
     void line(Player p,int point){if(point==1)lineA=p.getLocation().clone();else lineB=p.getLocation().clone();save();msg(p,"Schießlinie Punkt "+point+" gespeichert. Pfeile können hindurchfliegen.");}
     void spectator(Player p){spectator=p.getLocation().clone();save();msg(p,"Zuschauer-Spawn für Game 4 gespeichert.");}
     private int targetCount(){return targets.values().stream().mapToInt(Set::size).sum();}
     private String lane(int i){return Integer.toString(i);}
+    private int laneCapacity(){
+        int result=0;
+        for(int i=1;i<=16;i++){
+            if(!spawns.containsKey(lane(i)) || targets.getOrDefault(lane(i),Set.of()).size()!=10)break;
+            result=i;
+        }
+        return result;
+    }
+    private ItemStack issued(Material type,int amount){
+        ItemStack item=new ItemStack(type,amount);
+        ItemMeta meta=item.getItemMeta();meta.getPersistentDataContainer().set(issuedKey,PersistentDataType.BYTE,(byte)1);item.setItemMeta(meta);
+        return item;
+    }
+    /** Only remove equipment issued by this game, never players' existing bows or arrows. */
+    private void removeIssuedEquipment(){
+        for(Player p:Bukkit.getOnlinePlayers()){
+            org.bukkit.inventory.PlayerInventory inventory=p.getInventory();
+            for(int slot=0;slot<inventory.getSize();slot++){
+                ItemStack item=inventory.getItem(slot);
+                if(item!=null&&item.hasItemMeta()&&item.getItemMeta().getPersistentDataContainer().has(issuedKey,PersistentDataType.BYTE))inventory.setItem(slot,null);
+            }
+            ItemStack offhand=inventory.getItemInOffHand();
+            if(offhand.hasItemMeta()&&offhand.getItemMeta().getPersistentDataContainer().has(issuedKey,PersistentDataType.BYTE))inventory.setItemInOffHand(null);
+        }
+    }
     @EventHandler(priority=EventPriority.HIGH) public void click(PlayerInteractEvent e){Player p=e.getPlayer();ItemStack held=e.getItem();if(held==null||!held.hasItemMeta()||!held.getItemMeta().getPersistentDataContainer().has(wandKey,PersistentDataType.BYTE))return;
         e.setCancelled(true);Action a=e.getAction();
         if(p.isSneaking()&&(a==Action.LEFT_CLICK_AIR||a==Action.LEFT_CLICK_BLOCK)){
@@ -53,30 +79,38 @@ final class GameFourTarget implements Listener {
             save();msg(p,"Letzte Markierung rückgängig gemacht.");return;
         }
         Block b=e.getClickedBlock();if(b==null)return;
-        if(a==Action.LEFT_CLICK_BLOCK){int next=spawns.size()+1;if(next>8){msg(p,"Alle 8 Spawns gesetzt. Schleichen+Linksklick zum Rückgängigmachen.");return;}String id=lane(next);spawns.put(id,b.getLocation().add(.5,1,.5));history.computeIfAbsent(p.getUniqueId(),k->new ArrayDeque<>()).push("S:"+id);save();msg(p,"Kandidaten-Spawn §e"+next+"/8 §fgespeichert.");}
-        if(a==Action.RIGHT_CLICK_BLOCK){int total=targetCount();if(total>=80){msg(p,"Alle 80 Ziele gesetzt.");return;}String k=key(b.getLocation());for(Set<String> set:targets.values())if(set.contains(k)){msg(p,"Dieser Block ist bereits als Ziel markiert.");return;}
-            int index=total/10+1;String id=lane(index);targets.computeIfAbsent(id,x->new LinkedHashSet<>()).add(k);history.computeIfAbsent(p.getUniqueId(),x->new ArrayDeque<>()).push("T:"+id+":"+k);save();msg(p,"Bahn §e"+index+" §f– Ziel §e"+(total%10+1)+"/10 §fgespeichert (gesamt "+(total+1)+"/80).");}
+        if(a==Action.LEFT_CLICK_BLOCK){int next=spawns.size()+1;if(next>16){msg(p,"Alle 16 Spawns gesetzt. Schleichen+Linksklick zum Rückgängigmachen.");return;}String id=lane(next);spawns.put(id,b.getLocation().add(.5,1,.5));history.computeIfAbsent(p.getUniqueId(),k->new ArrayDeque<>()).push("S:"+id);save();msg(p,"Kandidaten-Spawn §e"+next+"/16 §fgespeichert.");}
+        if(a==Action.RIGHT_CLICK_BLOCK){int total=targetCount();if(total>=160){msg(p,"Alle 160 Ziele gesetzt.");return;}String k=key(b.getLocation());for(Set<String> set:targets.values())if(set.contains(k)){msg(p,"Dieser Block ist bereits als Ziel markiert.");return;}
+            int index=total/10+1;String id=lane(index);targets.computeIfAbsent(id,x->new LinkedHashSet<>()).add(k);history.computeIfAbsent(p.getUniqueId(),x->new ArrayDeque<>()).push("T:"+id+":"+k);save();msg(p,"Bahn §e"+index+" §f– Ziel §e"+(total%10+1)+"/10 §fgespeichert (gesamt "+(total+1)+"/160).");}
     }
     void teleport(CommandSender sender,Map<String,UUID> chosen,List<String> teamOrder,int heat){if(lineA==null||lineB==null){msg(sender,"Schießlinie fehlt: /wg game4 line1 und /wg game4 line2 setzen.");return;}if(spectator==null){msg(sender,"Zuschauer-Spawn fehlt! /wg game4 spectator am gewünschten Platz ausführen.");return;}
-        if(heat<1||heat>2){msg(sender,"Nur Durchgang 1 oder 2 möglich.");return;}
-        List<String> entrants=teamOrder.stream().filter(chosen::containsKey).toList();
-        int offset=(heat-1)*8;
-        if(offset>=entrants.size()){msg(sender,"Keine Kandidaten in Durchgang "+heat+".");return;}
+        int lanesAvailable=laneCapacity();
+        if(lanesAvailable==0){msg(sender,"Keine vollständige Bahn (Spawn + 10 Target-Blöcke). Bitte Setup ergänzen.");return;}
+        if(heat<1||heat>16){msg(sender,"Durchgang muss zwischen 1 und 16 liegen.");return;}
+        int maxChosenSlot=-1;
+        for(int i=0;i<teamOrder.size();i++)if(chosen.containsKey(teamOrder.get(i)))maxChosenSlot=i;
+        if(maxChosenSlot<0){msg(sender,"Keine Kandidaten ausgewählt.");return;}
+        int offset=(heat-1)*lanesAvailable;
+        if(offset>maxChosenSlot){msg(sender,"Keine Kandidaten in Durchgang "+heat+".");return;}
         Map<String,Integer> lanes=new LinkedHashMap<>();
-        for(int i=offset;i<Math.min(offset+8,entrants.size());i++)lanes.put(entrants.get(i),i-offset+1);
+        for(int i=offset;i<Math.min(offset+lanesAvailable,teamOrder.size());i++){
+            String team=teamOrder.get(i);
+            if(chosen.containsKey(team))lanes.put(team,i-offset+1);
+        }
+        if(lanes.isEmpty()){msg(sender,"Dieser Durchgang hat keine ausgewählten Teams.");return;}
         for(String team:lanes.keySet())if(!spawns.containsKey(lane(lanes.get(team)))){
             msg(sender,"Spawn fehlt für "+team+" (Bahn "+lanes.get(team)+").");return;
         }
-        stop();currentHeat=heat;totalHeats=entrants.size()>8?2:1;
+        stop();currentHeat=heat;totalHeats=(maxChosenSlot+lanesAvailable)/lanesAvailable;
         for(String team:lanes.keySet())candidates.put(team,chosen.get(team));staged=true;
         for(Player p:Bukkit.getOnlinePlayers()){String team=null;for(var entry:candidates.entrySet())if(entry.getValue().equals(p.getUniqueId())){team=entry.getKey();break;}if(team!=null){int track=lanes.get(team);p.teleport(spawns.get(lane(track)));p.sendTitle("§dZIELWASSER","§fBahn "+track+" – warte auf den Start",10,50,10);}else{p.teleport(spectator);spectators.add(p.getUniqueId());}}
-        teamLanes.clear();teamLanes.putAll(lanes);msg(sender,"Durchgang "+heat+": "+candidates.size()+" Teams auf Bahnen 1-8. Zweiter Durchgang: /wg tp game 4 2");
+        teamLanes.clear();teamLanes.putAll(lanes);msg(sender,"Durchgang "+heat+"/"+totalHeats+": "+candidates.size()+" Teams auf "+lanesAvailable+" Bahnen. Nächster Durchgang: /wg tp game 4 "+(heat+1));
     }
     private final Map<String,Integer> teamLanes=new HashMap<>();
     boolean start(CommandSender sender){if(!staged){msg(sender,"Erst /wg tp game 4 verwenden.");return false;}if(active||countdown!=null){msg(sender,"Spiel läuft bereits.");return false;}
         for(String team:candidates.keySet())if(targets.getOrDefault(lane(teamLanes.getOrDefault(team,-1)),Set.of()).size()!=10){msg(sender,"Team "+team+" hat "+targets.getOrDefault(lane(teamLanes.getOrDefault(team,-1)),Set.of()).size()+"/10 Ziele. Bitte vervollständigen.");return false;}
         restoreTargets();remaining.clear();for(var e:candidates.entrySet())remaining.put(e.getKey(),new HashSet<>(targets.get(lane(teamLanes.get(e.getKey())))));
-        for(UUID id:candidates.values()){Player p=Bukkit.getPlayer(id);if(p!=null){p.getInventory().addItem(new ItemStack(Material.BOW));p.getInventory().addItem(new ItemStack(Material.ARROW,64));}}
+        for(UUID id:candidates.values()){Player p=Bukkit.getPlayer(id);if(p!=null){p.getInventory().addItem(issued(Material.BOW,1));p.getInventory().addItem(issued(Material.ARROW,64));}}
         countdown=Bukkit.getScheduler().runTaskTimer(plugin,new Runnable(){int sec=5;public void run(){if(sec>0){for(UUID id:candidates.values()){Player p=Bukkit.getPlayer(id);if(p!=null)p.sendTitle("§e"+sec,"§7Bogen bereithalten!",0,22,0);}sec--;return;}countdown.cancel();countdown=null;active=true;for(UUID id:candidates.values()){Player p=Bukkit.getPlayer(id);if(p!=null)p.sendTitle("§aLOS!","§fTriff deine 10 Ziele!",0,35,10);}Bukkit.broadcastMessage("§d[Zielwasser] §aLOS! §f10 Ziele pro Team.");}},0L,20L);
         msg(sender,"Countdown gestartet: 5 Sekunden. Kandidaten haben Bogen und Pfeile erhalten.");return true;
     }
@@ -107,9 +141,9 @@ final class GameFourTarget implements Listener {
         String k=key(e.getHitBlock().getLocation());Set<String> left=remaining.get(team);if(left==null||!left.remove(k))return;
         Block struck=e.getHitBlock();removedBlocks.putIfAbsent(k,struck.getBlockData().clone());struck.setType(Material.AIR,false);arrow.remove();
         int count=10-left.size();plugin.gameFourHit(team,p,count);Location pos=e.getHitBlock().getLocation().add(.5,.5,.5);pos.getWorld().spawnParticle(Particle.HAPPY_VILLAGER,pos,15,.3,.3,.3);p.playSound(p.getLocation(),Sound.ENTITY_EXPERIENCE_ORB_PICKUP,1f,1.2f);p.sendActionBar("§dZIELWASSER §f"+count+"§7/10 Treffer");
-        if(left.isEmpty()){Bukkit.broadcastMessage("§d[Zielwasser] §e"+team+" §fhat alle 10 Ziele getroffen!");active=false;staged=false;plugin.gameFourCompleted();}
+        if(left.isEmpty()){Bukkit.broadcastMessage("§d[Zielwasser] §e"+team+" §fhat alle 10 Ziele getroffen!");active=false;staged=false;removeIssuedEquipment();plugin.gameFourCompleted();}
     }
-    void stop(){if(countdown!=null){countdown.cancel();countdown=null;}active=false;staged=false;candidates.clear();spectators.clear();remaining.clear();}
+    void stop(){if(countdown!=null){countdown.cancel();countdown=null;}active=false;staged=false;removeIssuedEquipment();restoreTargets();candidates.clear();spectators.clear();remaining.clear();}
     void reset(){stop();restoreTargets();}
     void save(){YamlConfiguration y=new YamlConfiguration();y.set("spectator",spectator);y.set("lineA",lineA);y.set("lineB",lineB);for(var e:spawns.entrySet())y.set("spawns."+e.getKey(),e.getValue());for(var e:targets.entrySet())y.set("targets."+e.getKey(),new ArrayList<>(e.getValue()));try{y.save(file);}catch(IOException ex){plugin.getLogger().warning("Game 4 save failed: "+ex.getMessage());}}
     void load(){if(!file.exists())return;YamlConfiguration y=YamlConfiguration.loadConfiguration(file);spectator=y.getLocation("spectator");lineA=y.getLocation("lineA");lineB=y.getLocation("lineB");if(y.isConfigurationSection("spawns"))for(String t:y.getConfigurationSection("spawns").getKeys(false))spawns.put(t,y.getLocation("spawns."+t));if(y.isConfigurationSection("targets"))for(String t:y.getConfigurationSection("targets").getKeys(false))targets.put(t,new LinkedHashSet<>(y.getStringList("targets."+t)));}

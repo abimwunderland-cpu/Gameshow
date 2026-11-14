@@ -124,11 +124,13 @@ final class GameNineUhc implements Listener {
     private void equip(Player p,String team){
         PlayerInventory i=p.getInventory();
         // Armor array order is boots, leggings, chestplate, helmet.
-        boolean betterLegs=plugin.uhcLeggings(team),betterSword=plugin.uhcSword(team),potions=plugin.uhcPotions(team);
-        i.setArmorContents(new ItemStack[]{enchanted(Material.DIAMOND_BOOTS,Enchantment.PROTECTION,1),
-            enchanted(betterLegs?Material.NETHERITE_LEGGINGS:Material.DIAMOND_LEGGINGS,Enchantment.PROTECTION,1),
-            enchanted(Material.DIAMOND_CHESTPLATE,Enchantment.PROTECTION,1),enchanted(Material.DIAMOND_HELMET,Enchantment.PROTECTION,1)});
-        if(betterLegs)i.getLeggings().addUnsafeEnchantment(Enchantment.UNBREAKING,1);
+        boolean betterLegs=plugin.uhcLeggings(team),betterSword=plugin.uhcSword(team),betterArmor=plugin.uhcArmor(team);
+        ItemStack boots=enchanted(betterArmor?Material.NETHERITE_BOOTS:Material.DIAMOND_BOOTS,Enchantment.PROTECTION,1);
+        ItemStack leggings=enchanted(betterLegs?Material.NETHERITE_LEGGINGS:Material.DIAMOND_LEGGINGS,Enchantment.PROTECTION,1);
+        ItemStack helmet=enchanted(betterArmor?Material.NETHERITE_HELMET:Material.DIAMOND_HELMET,Enchantment.PROTECTION,1);
+        if(betterArmor){boots.addUnsafeEnchantment(Enchantment.UNBREAKING,1);helmet.addUnsafeEnchantment(Enchantment.UNBREAKING,1);}
+        if(betterLegs)leggings.addUnsafeEnchantment(Enchantment.UNBREAKING,1);
+        i.setArmorContents(new ItemStack[]{boots,leggings,enchanted(Material.DIAMOND_CHESTPLATE,Enchantment.PROTECTION,1),helmet});
         i.setItem(0,enchanted(betterSword?Material.NETHERITE_SWORD:Material.DIAMOND_SWORD,Enchantment.SHARPNESS,1));
         i.setItem(1,new ItemStack(Material.DIAMOND_AXE));
         i.setItem(2,enchanted(Material.DIAMOND_PICKAXE,Enchantment.EFFICIENCY,2));
@@ -142,11 +144,6 @@ final class GameNineUhc implements Listener {
         i.setItem(10,new ItemStack(Material.ARROW,16));
         i.setItem(11,new ItemStack(Material.COOKED_BEEF,16));
         i.setItemInOffHand(new ItemStack(Material.SHIELD));
-        if(potions)for(int n=0;n<3;n++){
-            ItemStack item=new ItemStack(Material.POTION);
-            PotionMeta meta=(PotionMeta)item.getItemMeta();meta.setBasePotionType(PotionType.STRONG_HEALING);item.setItemMeta(meta);
-            i.setItem(12+n,item);
-        }
         p.updateInventory();
     }
     void status(CommandSender s){tell(s,"Status: "+(active?"Kampf läuft":prepared?"Countdown":finished?"beendet":"bereit")+" | Sieger: "+(winner==null?"offen":winner)+" | temporäre Blöcke: "+placed.size()+" | Flüssigkeiten: "+fluids.size());}

@@ -1,5 +1,5 @@
-# V2: neue Minecraft-Fragen, mittleres bis schweres Niveau.
-# Bearbeitbar; bestehende Datei auf dem Server muss ersetzt werden.
+# V2.1: schwerere Minecraft-Fragen, 9 Sekunden Antwortzeit.
+# Einmalige Migration mit Backup, danach editierbar.
 questions:
 - question: '[MITTEL] Welcher Gegenstand öffnet eine ominöse Vault?'
   answer: Ominöser Prüfungsschlüssel
@@ -7,36 +7,6 @@ questions:
   - Enderauge
   - Echoscherbe
   - Gewöhnlicher Prüfungsschlüssel
-- question: '[MITTEL] Aus welchem Mob erhält man Brisenruten?'
-  answer: Brise
-  wrong:
-  - Verwüster
-  - Phantom
-  - Ertrunkener
-- question: '[MITTEL] Welchen Block findet man in einer Prüfungskammer besonders häufig?'
-  answer: Tuff
-  wrong:
-  - Endstein
-  - Prismarin
-  - Schwarzer Beton
-- question: '[MITTEL] Welcher Block verarbeitet Items automatisch mit Redstone-Impulsen?'
-  answer: Crafter
-  wrong:
-  - Fass
-  - Schmiedetisch
-  - Amboss
-- question: '[MITTEL] Was wird zum Aufladen eines Respawn-Ankers benötigt?'
-  answer: Glowstone
-  wrong:
-  - Obsidian
-  - Enderperle
-  - Lapislazuli
-- question: '[MITTEL] In welcher Dimension explodiert ein normales Bett beim Benutzen?'
-  answer: Nether
-  wrong:
-  - Oberwelt
-  - End und Oberwelt
-  - Keine
 - question: '[MITTEL] Welche Verzauberung lässt einen Dreizack bei Gewitter Blitze beschwören?'
   answer: Entladung
   wrong:
@@ -55,36 +25,12 @@ questions:
   - Leuchtbeeren
   - Glowstone-Staub
   - Glasflasche
-- question: '[MITTEL] Welche Zutat ergibt einen Trank der Feuerresistenz?'
-  answer: Magmacreme
-  wrong:
-  - Ghast-Träne
-  - Schleimball
-  - Lohenstaub
 - question: '[MITTEL] Woraus erhält man einen Trank der Langsamfallens?'
   answer: Phantomhaut
   wrong:
   - Federn
   - Schildkrötenpanzer
   - Drachenatem
-- question: '[MITTEL] Welche Zutat ergibt einen Trank der Wasseratmung?'
-  answer: Kugelfisch
-  wrong:
-  - Seetang
-  - Tropenfisch
-  - Nautilusschale
-- question: '[MITTEL] Was lässt die Uhr in der Oberwelt anzeigen?'
-  answer: Tageszeit
-  wrong:
-  - Wetter
-  - Mondphase
-  - Spawnpunkt
-- question: '[MITTEL] Wo kann man eine Elytra in Survival finden?'
-  answer: Endschiff
-  wrong:
-  - Waldanwesen
-  - Netherfestung
-  - Ozeanmonument
 - question: '[MITTEL] Welcher Mob verursacht beim Angriff den Effekt Hunger?'
   answer: Husk
   wrong:
@@ -103,36 +49,12 @@ questions:
   - Honigblöcke
   - Bienenwachs
   - Eine leere Flasche
-- question: '[MITTEL] Womit lockt man Schildkröten zum Züchten an?'
-  answer: Seegras
-  wrong:
-  - Seetang
-  - Fisch
-  - Bambus
 - question: '[MITTEL] Welche Verzauberung lässt dich mit dem Dreizack im Wasser vorwärts schnellen?'
   answer: Sog
   wrong:
   - Entladung
   - Treue
   - Wasserläufer
-- question: '[MITTEL] Was entsteht, wenn ein Piglin beim Tausch einen Goldbarren bekommt?'
-  answer: Zufälliges Tausch-Item
-  wrong:
-  - Ein garantierter Enderperle-Stack
-  - Ein Netherstern
-  - Ein Goldblock
-- question: '[MITTEL] Wie wird aus einer normalen Karte eine größere Karte?'
-  answer: Papier am Kartentisch
-  wrong:
-  - Kompass im Amboss
-  - Goldbarren am Schmiedetisch
-  - Glowstone am Zaubertisch
-- question: '[MITTEL] Was blockiert einen Endportalrahmen beim Aktivieren?'
-  answer: Fehlendes Enderauge
-  wrong:
-  - Fackel
-  - Redstone-Staub
-  - Ein Schild
 - question: '[MITTEL] Wie heißt das neue Werkzeug zum Ausgraben verdächtigen Sands?'
   answer: Pinsel
   wrong:
@@ -259,21 +181,3 @@ questions:
   - Netherfestung
   - Wüstentempel
   - Endportalrahmen
-- question: '[SCHWER] Welcher Mob kann durch Wasser Schaden nehmen?'
-  answer: Enderman
-  wrong:
-  - Ertrunkener
-  - Schildkröte
-  - Wächter
-- question: '[SCHWER] Was kann man mit einem nicht gewachsten Kupferblock beobachten?'
-  answer: Oxidation
-  wrong:
-  - Endstein-Bildung
-  - Lichtverschmutzung
-  - Versteinerung
-- question: '[SCHWER] Was schützt Wolf-Rüstung?'
-  answer: Einen gezähmten Wolf
-  wrong:
-  - Ein Pferd
-  - Einen Armadillo
-  - Einen Schneegolem
