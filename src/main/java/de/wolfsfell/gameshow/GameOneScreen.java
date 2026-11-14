@@ -204,15 +204,15 @@ final class GameOneScreen {
         int leftWidth=12*TILE,rightStart=21*TILE;
         panel(g,0,leftWidth,"TEAM LEADERBOARD");panel(g,rightStart,12*TILE,"SPIELER LEADERBOARD");
         List<String> teams=plugin.wideTeams();
-        for(int i=0;i<Math.min(8,teams.size());i++){
-            String team=teams.get(i);int y=230+i*106;
-            if(i<3){g.setColor(new java.awt.Color(65,46,90));g.fillRoundRect(48,y-57,leftWidth-95,86,18,18);}
-            text(g,(i+1)+".  "+team,65,y,47,teamColor(plugin.wideTeamColor(team)));
+        for(int i=0;i<Math.min(16,teams.size());i++){
+            String team=teams.get(i);int y=192+i*55;
+            if(i<3){g.setColor(new java.awt.Color(65,46,90));g.fillRoundRect(48,y-34,leftWidth-95,48,12,12);}
+            text(g,(i+1)+".  "+team,65,y,36,teamColor(plugin.wideTeamColor(team)));
             text(g,String.valueOf(plugin.wideTeamPoints(team)),leftWidth-230,y,49,new java.awt.Color(246,203,102));
         }
         List<UUID> people=plugin.widePlayers();
         for(int i=0;i<Math.min(8,people.size());i++){
-            UUID id=people.get(i);int y=230+i*106;
+            UUID id=people.get(i);int y=192+i*55;
             if(i<3){g.setColor(new java.awt.Color(65,46,90));g.fillRoundRect(rightStart+48,y-57,12*TILE-95,86,18,18);}
             text(g,(i+1)+".  "+plugin.widePlayerName(id),rightStart+65,y,43,teamColor(plugin.widePlayerColor(id)));
             text(g,String.valueOf(plugin.widePlayerPoints(id)),WIDTH-230,y,49,new java.awt.Color(246,203,102));
@@ -246,9 +246,9 @@ final class GameOneScreen {
             centered(g,quiz2Correct==null?"ZEIT: "+quiz2Seconds+"s":"AUFLOESUNG",180,1000,64,new Color(255,213,109));
             String[] words=quiz2Prompt.split(" ");StringBuilder line=new StringBuilder();int y=275;
             for(String word:words){String trial=line.length()==0?word:line+" "+word;
-                if(trial.length()>32 && line.length()>0){centered(g,line.toString(),y,1030,45,Color.WHITE);y+=54;line=new StringBuilder(word);}else line=new StringBuilder(trial);
+                if(trial.length()>27 && line.length()>0){centered(g,line.toString(),y,1030,56,Color.WHITE);y+=64;line=new StringBuilder(word);}else line=new StringBuilder(trial);
             }
-            if(line.length()>0)centered(g,line.toString(),y,1030,45,Color.WHITE);
+            if(line.length()>0)centered(g,line.toString(),y,1030,56,Color.WHITE);
             for(int i=0;i<4;i++){
                 int yy=490+i*112;String label=(char)('A'+i)+") "+quiz2Choices[i];
                 boolean right=quiz2Correct!=null && quiz2Correct.equals(""+(char)('A'+i));
@@ -264,7 +264,7 @@ final class GameOneScreen {
             g.drawImage(small,cx+120,170,centerWidth-120,centerWidth-120,null);
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             text(g,"STUFE "+stage()+" / 7",cx+310,90,68,java.awt.Color.WHITE);
-            text(g,"RICHTIG: +"+points()+" PUNKTE",cx+185,HEIGHT-65,55,new java.awt.Color(255,217,99));
+            text(g,"RICHTIG: +10 PUNKTE",cx+185,HEIGHT-65,55,new java.awt.Color(255,217,99));
             if(frozen)text(g,"BUZZ!",cx+410,165,62,new java.awt.Color(255,130,191));
         }else{
             centered(g,"TWITCH",350,centerWidth-80,90,new Color(202,137,255));

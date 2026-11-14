@@ -1,568 +1,279 @@
+# V2: neue Minecraft-Fragen, mittleres bis schweres Niveau.
+# Bearbeitbar; bestehende Datei auf dem Server muss ersetzt werden.
 questions:
-- game: 2
-  question: '[LEICHT] Wie viele Bücherregale braucht man für Level-30-Verzauberungen?'
-  answer: '15'
+- question: '[MITTEL] Welcher Gegenstand öffnet eine ominöse Vault?'
+  answer: Ominöser Prüfungsschlüssel
   wrong:
-  - '12'
-  - '18'
-  - '20'
-- game: 2
-  question: '[LEICHT] Welches Material benötigt man zum Reparieren einer Elytra am Amboss?'
+  - Enderauge
+  - Echoscherbe
+  - Gewöhnlicher Prüfungsschlüssel
+- question: '[MITTEL] Aus welchem Mob erhält man Brisenruten?'
+  answer: Brise
+  wrong:
+  - Verwüster
+  - Phantom
+  - Ertrunkener
+- question: '[MITTEL] Welchen Block findet man in einer Prüfungskammer besonders häufig?'
+  answer: Tuff
+  wrong:
+  - Endstein
+  - Prismarin
+  - Schwarzer Beton
+- question: '[MITTEL] Welcher Block verarbeitet Items automatisch mit Redstone-Impulsen?'
+  answer: Crafter
+  wrong:
+  - Fass
+  - Schmiedetisch
+  - Amboss
+- question: '[MITTEL] Was wird zum Aufladen eines Respawn-Ankers benötigt?'
+  answer: Glowstone
+  wrong:
+  - Obsidian
+  - Enderperle
+  - Lapislazuli
+- question: '[MITTEL] In welcher Dimension explodiert ein normales Bett beim Benutzen?'
+  answer: Nether
+  wrong:
+  - Oberwelt
+  - End und Oberwelt
+  - Keine
+- question: '[MITTEL] Welche Verzauberung lässt einen Dreizack bei Gewitter Blitze beschwören?'
+  answer: Entladung
+  wrong:
+  - Sog
+  - Treue
+  - Harpune
+- question: '[MITTEL] Was brauchst du zum Heilen eines Zombie-Dorfbewohners?'
+  answer: Schwäche und goldener Apfel
+  wrong:
+  - Sättigung und Karotte
+  - Regeneration und Honig
+  - Unsichtbarkeit und Milch
+- question: '[MITTEL] Welcher Gegenstand wird zum Brauen von Nachtsicht verwendet?'
+  answer: Goldene Karotte
+  wrong:
+  - Leuchtbeeren
+  - Glowstone-Staub
+  - Glasflasche
+- question: '[MITTEL] Welche Zutat ergibt einen Trank der Feuerresistenz?'
+  answer: Magmacreme
+  wrong:
+  - Ghast-Träne
+  - Schleimball
+  - Lohenstaub
+- question: '[MITTEL] Woraus erhält man einen Trank der Langsamfallens?'
   answer: Phantomhaut
   wrong:
-  - Leder
-  - Feder
-  - Netheritbarren
-- game: 2
-  question: '[LEICHT] Womit lässt sich ein Braustand betreiben?'
-  answer: Lohenstaub
+  - Federn
+  - Schildkrötenpanzer
+  - Drachenatem
+- question: '[MITTEL] Welche Zutat ergibt einen Trank der Wasseratmung?'
+  answer: Kugelfisch
   wrong:
-  - Redstone
-  - Kohle
-  - Glühsteinstaub
-- game: 2
-  question: '[LEICHT] Welcher Mob wird durch einen Blitz zum Hexer?'
-  answer: Dorfbewohner
+  - Seetang
+  - Tropenfisch
+  - Nautilusschale
+- question: '[MITTEL] Was lässt die Uhr in der Oberwelt anzeigen?'
+  answer: Tageszeit
   wrong:
-  - Plünderer
-  - Zombie
-  - Schneegolem
-- game: 2
-  question: '[LEICHT] Welche Spitzhacke baut Obsidian in Survival ab?'
-  answer: Diamantspitzhacke
+  - Wetter
+  - Mondphase
+  - Spawnpunkt
+- question: '[MITTEL] Wo kann man eine Elytra in Survival finden?'
+  answer: Endschiff
   wrong:
-  - Eisenspitzhacke
-  - Steinspitzhacke
-  - Goldspitzhacke
-- game: 2
-  question: '[LEICHT] Welche Pflanze wächst auf Seelensand?'
-  answer: Netherwarze
+  - Waldanwesen
+  - Netherfestung
+  - Ozeanmonument
+- question: '[MITTEL] Welcher Mob verursacht beim Angriff den Effekt Hunger?'
+  answer: Husk
   wrong:
-  - Kakaobohne
-  - Süßbeere
-  - Kaktus
-- game: 2
-  question: '[LEICHT] Wie viele Augen kann ein Endportalrahmen maximal benötigen?'
-  answer: '12'
+  - Bogged
+  - Blaze
+  - Endermite
+- question: '[MITTEL] Wie heißt das Giftpfeile verschießende Skelett aus Prüfungskammern?'
+  answer: Bogged
   wrong:
-  - '8'
-  - '10'
-  - '16'
-- game: 2
-  question: '[LEICHT] Welches Item bringt Piglins zum Tauschen?'
-  answer: Goldbarren
+  - Stray
+  - Witherskelett
+  - Skelettpferd
+- question: '[MITTEL] Was erhält man bei Abbau eines Bienennests mit Silk Touch?'
+  answer: Das Bienennest als Block
   wrong:
-  - Goldklumpen
-  - Goldblock
-  - Goldene Karotte
-- game: 2
-  question: '[LEICHT] Was braucht man zum Züchten von Schildkröten?'
+  - Honigblöcke
+  - Bienenwachs
+  - Eine leere Flasche
+- question: '[MITTEL] Womit lockt man Schildkröten zum Züchten an?'
   answer: Seegras
   wrong:
   - Seetang
-  - Kelpblock
-  - Tropenfisch
-- game: 2
-  question: '[LEICHT] Welches Erz lässt sich nur mit Eisen oder besser abbauen?'
-  answer: Diamanterz
+  - Fisch
+  - Bambus
+- question: '[MITTEL] Welche Verzauberung lässt dich mit dem Dreizack im Wasser vorwärts schnellen?'
+  answer: Sog
   wrong:
-  - Kohleerz
-  - Kupfererz
-  - Netherquarzerz
-- game: 2
-  question: '[LEICHT] Wie viele Eisenbarren benötigt ein Amboss?'
-  answer: '31'
-  wrong:
-  - '27'
-  - '32'
-  - '36'
-- game: 2
-  question: '[LEICHT] Welcher Block macht Wasser zu einer Blasensäule nach oben?'
-  answer: Seelensand
-  wrong:
-  - Magma
-  - Schlamm
-  - Sand
-- game: 2
-  question: '[LEICHT] Wie viele Blöcke hoch ist eine Standard-Netherportalöffnung mindestens?'
-  answer: '3'
-  wrong:
-  - '2'
-  - '4'
-  - '5'
-- game: 2
-  question: '[LEICHT] Was benötigt man für einen Komparator?'
-  answer: Netherquarz
-  wrong:
-  - Amethyst
-  - Lapislazuli
-  - Kupfer
-- game: 2
-  question: '[LEICHT] Welche Verzauberung hilft beim Atmen unter Wasser?'
-  answer: Atmung
-  wrong:
-  - Wasseraffinität
+  - Entladung
+  - Treue
   - Wasserläufer
-  - Dornen
-- game: 2
-  question: '[LEICHT] Welches Item wird für einen Leuchtfeuerstrahl benötigt?'
-  answer: Netherstern
+- question: '[MITTEL] Was entsteht, wenn ein Piglin beim Tausch einen Goldbarren bekommt?'
+  answer: Zufälliges Tausch-Item
   wrong:
-  - Drachenei
-  - Enderkristall
-  - Echolot
-- game: 2
-  question: '[LEICHT] Wie viele Honigwaben braucht man für einen Bienenstock?'
-  answer: '3'
+  - Ein garantierter Enderperle-Stack
+  - Ein Netherstern
+  - Ein Goldblock
+- question: '[MITTEL] Wie wird aus einer normalen Karte eine größere Karte?'
+  answer: Papier am Kartentisch
   wrong:
-  - '2'
-  - '4'
-  - '6'
-- game: 2
-  question: '[LEICHT] Welche Kreatur bewacht ein Ozeanmonument?'
-  answer: Großer Wächter
+  - Kompass im Amboss
+  - Goldbarren am Schmiedetisch
+  - Glowstone am Zaubertisch
+- question: '[MITTEL] Was blockiert einen Endportalrahmen beim Aktivieren?'
+  answer: Fehlendes Enderauge
   wrong:
-  - Warden
-  - Verwüster
-  - Shulker
-- game: 2
-  question: '[LEICHT] Welche Holzart erhält man aus einem Mangrovenbaum?'
-  answer: Mangrovenholz
+  - Fackel
+  - Redstone-Staub
+  - Ein Schild
+- question: '[MITTEL] Wie heißt das neue Werkzeug zum Ausgraben verdächtigen Sands?'
+  answer: Pinsel
   wrong:
-  - Kirschholz
-  - Akazienholz
-  - Dschungelholz
-- game: 2
-  question: '[LEICHT] Was entsteht aus einem Skelett in Pulverschnee?'
-  answer: Streuner
+  - Hacke
+  - Schaufel
+  - Spitzhacke
+- question: '[MITTEL] Welcher Gegenstand hilft, die Ausrichtung eines Magnetits zu verfolgen?'
+  answer: Magnetit-Kompass
   wrong:
-  - Witherskelett
-  - Husk
-  - Ertrunkener
-- game: 2
-  question: '[LEICHT] Was braucht man zum Aktivieren eines Respawn-Ankers?'
-  answer: Glowstone
+  - Wiederherstellungskompass
+  - Uhr
+  - Enderauge
+- question: '[SCHWER] Welche Verzauberung gibt es ausschließlich für den Streitkolben?'
+  answer: Dichte
   wrong:
-  - Redstone
-  - Lohenstaub
-  - Amethyst
-- game: 2
-  question: '[LEICHT] Welche Verzauberung erhöht die Beute von Mobs?'
-  answer: Plünderung
-  wrong:
-  - Glück
-  - Effizienz
-  - Bann
-- game: 2
-  question: '[LEICHT] Was kann man mit einem Pinsel aus verdächtigem Sand holen?'
-  answer: Archäologie-Beute
-  wrong:
-  - Erzadern
-  - Netherit
-  - Erfahrungsflaschen
-- game: 2
-  question: '[LEICHT] Was benötigt ein Kartografietisch zum Vergrößern einer Karte?'
-  answer: Papier
-  wrong:
-  - Buch
-  - Kompass
-  - Feder
-- game: 2
-  question: '[LEICHT] Wie viele Enderkristalle braucht man zum Wiederbeleben des Drachen?'
-  answer: '4'
-  wrong:
-  - '2'
-  - '6'
-  - '8'
-- game: 2
-  question: '[LEICHT] Welche Kreatur kann Gegenstände vom Boden aufsammeln und sortieren?'
-  answer: Allay
-  wrong:
-  - Fledermaus
-  - Papagei
-  - Schneegolem
-- game: 2
-  question: '[MITTEL] Welcher Block gibt einem Komparator ein Signal je nach Füllstand?'
-  answer: Komposter
-  wrong:
-  - Obsidian
-  - Bücherregal
-  - Eisblock
-- game: 2
-  question: '[MITTEL] Welche Verzauberung ist mit Unendlichkeit auf einem Bogen unvereinbar?'
-  answer: Reparatur
-  wrong:
-  - Stärke
-  - Flamme
-  - Schlag
-- game: 2
-  question: '[MITTEL] Was ist die maximale Stufe von Federfall im Survival?'
-  answer: '4'
-  wrong:
-  - '3'
-  - '5'
-  - '6'
-- game: 2
-  question: '[MITTEL] Wie viele Hungerpunkte füllt eine goldene Karotte auf?'
-  answer: '6'
-  wrong:
-  - '4'
-  - '8'
-  - '10'
-- game: 2
-  question: '[MITTEL] Wie weit reicht ein normales Redstone-Signal maximal?'
-  answer: '15'
-  wrong:
-  - '12'
-  - '16'
-  - '20'
-- game: 2
-  question: '[MITTEL] Welche Kreatur kann aus einem normalen Piglin in der Oberwelt werden?'
-  answer: Zombifizierter Piglin
-  wrong:
-  - Hoglin
-  - Zombie
-  - Piglin-Barbar
-- game: 2
-  question: '[MITTEL] Welche Verzauberung ist mit Glück auf Werkzeugen unvereinbar?'
-  answer: Behutsamkeit
-  wrong:
-  - Effizienz
-  - Haltbarkeit
-  - Reparatur
-- game: 2
-  question: '[MITTEL] Wie viele Schneebälle lassen sich in einem Stack stapeln?'
-  answer: '16'
-  wrong:
-  - '32'
-  - '64'
-  - '8'
-- game: 2
-  question: '[MITTEL] Wie viele Tränke kann ein Braustand gleichzeitig brauen?'
-  answer: '3'
-  wrong:
-  - '2'
-  - '4'
-  - '5'
-- game: 2
-  question: '[MITTEL] Was passiert bei einem Bett-Versuch im Nether?'
-  answer: Es explodiert
-  wrong:
-  - Es setzt Spawn
-  - Es verschwindet
-  - Es wird Obsidian
-- game: 2
-  question: '[MITTEL] Welche Verzauberung beschleunigt das Abbauen unter Wasser?'
-  answer: Wasseraffinität
-  wrong:
-  - Atmung
-  - Wasserläufer
-  - Seelenläufer
-- game: 2
-  question: '[MITTEL] Welche Trankzutat verlängert normalerweise die Wirkungsdauer?'
-  answer: Redstone-Staub
-  wrong:
-  - Glowstone-Staub
-  - Schießpulver
-  - Drachenatem
-- game: 2
-  question: '[MITTEL] Welche Zutat macht aus einem Trank einen Wurftrank?'
-  answer: Schießpulver
-  wrong:
-  - Redstone
-  - Glowstone
-  - Zucker
-- game: 2
-  question: '[MITTEL] Welcher Mob droppt bei Spielertod einen Totem der Unsterblichkeit?'
-  answer: Magier
-  wrong:
-  - Hexe
-  - Plünderer
-  - Verwüster
-- game: 2
-  question: '[MITTEL] Welche Blöcke kann ein Enderman normalerweise aufheben?'
-  answer: Grasblock
-  wrong:
-  - Obsidian
-  - Netheritblock
-  - Bedrock
-- game: 2
-  question: '[MITTEL] Welche Struktur enthält typischerweise eine Endportal-Kammer?'
-  answer: Festung
-  wrong:
-  - Waldanwesen
-  - Bastion
-  - Antike Stadt
-- game: 2
-  question: '[MITTEL] Was passiert beim Einsatz eines Dreizacks mit Sog im Regen?'
-  answer: Spieler wird gezogen
-  wrong:
-  - Blitz schlägt ein
-  - Dreizack kehrt zurück
-  - Ziel wird vergiftet
-- game: 2
-  question: '[MITTEL] Wie viele Netherite-Schrott braucht man für einen Netheritbarren?'
-  answer: '4'
-  wrong:
-  - '3'
-  - '5'
-  - '8'
-- game: 2
-  question: '[MITTEL] Welcher Block kann mit einem Sculk-Katalysator entstehen?'
-  answer: Sculk
-  wrong:
-  - Obsidian
-  - Netherwarzenblock
-  - Tiefenschiefer
-- game: 2
-  question: '[MITTEL] Was macht ein Schleifstein mit gewöhnlichen Verzauberungen?'
-  answer: Entfernt sie
-  wrong:
-  - Verdoppelt sie
-  - Überträgt sie
-  - Versteckt sie
-- game: 2
-  question: '[MITTEL] Welcher Gegenstand wird beim Schmiedetisch für Netherit-Upgrade zusätzlich benötigt?'
-  answer: Netherit-Upgradevorlage
-  wrong:
-  - Enderkristall
-  - Amethystsplitter
-  - Netherstern
-- game: 2
-  question: '[MITTEL] Welche Struktur findet man mit einem Auge des Enders?'
-  answer: Festung
-  wrong:
-  - Bastion
-  - Wüstentempel
-  - Waldanwesen
-- game: 2
-  question: '[MITTEL] Welcher Effekt entsteht beim Essen eines Chorusfruchts?'
-  answer: Zufallsteleport
-  wrong:
-  - Regeneration
-  - Schwebekraft
-  - Blindheit
-- game: 2
-  question: '[MITTEL] Welcher Block wandelt einen Dorfbewohner in einen Kartografen um?'
-  answer: Kartografietisch
-  wrong:
-  - Lesepult
-  - Webstuhl
-  - Steinsäge
-- game: 2
-  question: '[MITTEL] Was benötigt man für eine geladenen Creeper?'
-  answer: Blitzeinschlag
-  wrong:
-  - Feuerladung
-  - Lava
-  - Trank der Stärke
-- game: 2
-  question: '[MITTEL] Welche Verzauberung verhindert das Verschwinden des Dreizacks nach dem Wurf?'
-  answer: Treue
+  - Schärfe
+  - Plünderung
+  - Behutsamkeit
+- question: '[SCHWER] Welche Streitkolben-Verzauberung verringert die wirksame Rüstung des Ziels?'
+  answer: Durchschlag
   wrong:
   - Sog
-  - Entladung
-  - Harpune
-- game: 2
-  question: '[MITTEL] Was erhöht die Stufe eines Leuchtfeuers?'
-  answer: Weitere Mineralblock-Schichten
-  wrong:
-  - Mehr Glas
-  - Mehr Nethersterne
-  - Mehr Licht
-- game: 2
-  question: '[MITTEL] Welche Pflanze kann man mit Knochenmehl direkt zu einem Baum wachsen lassen?'
-  answer: Azaleenbusch
-  wrong:
-  - Toter Busch
-  - Netherwarze
-  - Seerose
-- game: 2
-  question: '[MITTEL] Welcher Mob wird von Schildkröteneiern angelockt?'
-  answer: Zombie
-  wrong:
-  - Creeper
-  - Skelett
-  - Spinne
-- game: 2
-  question: '[MITTEL] Welche Verzauberung ist auf einer Armbrust mit Mehrfachschuss unvereinbar?'
-  answer: Durchschuss
-  wrong:
-  - Schnellladen
-  - Haltbarkeit
-  - Reparatur
-- game: 2
-  question: '[MITTEL] Welcher Gegenstand lässt sich mit einem Schmiedetisch nicht direkt verbessern?'
-  answer: Elytra
-  wrong:
-  - Diamantbrustplatte
-  - Diamantschwert
-  - Diamantspitzhacke
-- game: 2
-  question: '[MITTEL] Was wird aus einem Zombie nach längerer Zeit unter Wasser?'
-  answer: Ertrunkener
-  wrong:
-  - Husk
-  - Streuner
-  - Piglin
-- game: 2
-  question: '[MITTEL] Wie viele maximale Schutz-Stufen hat normale Schutz-Verzauberung?'
-  answer: '4'
-  wrong:
-  - '3'
-  - '5'
-  - '6'
-- game: 2
-  question: '[MITTEL] Welche Art von Schaden wird durch Federfall reduziert?'
-  answer: Fallschaden
-  wrong:
-  - Feuerschaden
-  - Projektilschaden
-  - Explosionsschaden
-- game: 2
-  question: '[SCHWER] Ab welcher Amboss-Kostenstufe zeigt Java-Survival „Zu teuer“?'
-  answer: '40'
-  wrong:
-  - '39'
-  - '41'
-  - '50'
-- game: 2
-  question: '[SCHWER] Wie hoch ist die Chance auf Amboss-Abnutzung pro Benutzung?'
-  answer: 12 %
-  wrong:
-  - 10 %
-  - 15 %
-  - 20 %
-- game: 2
-  question: '[SCHWER] Wie viele Bücherregale über 15 verbessern den Verzauberungstisch zusätzlich?'
-  answer: '0'
-  wrong:
-  - '1'
-  - '5'
-  - '10'
-- game: 2
-  question: '[SCHWER] Wie hoch ist die maximale Verzauberungsstufe von Seelenläufer?'
-  answer: '3'
-  wrong:
-  - '2'
-  - '4'
-  - '5'
-- game: 2
-  question: '[SCHWER] Welche Verzauberung ist mit Sog auf einem Dreizack unvereinbar?'
-  answer: Treue
-  wrong:
-  - Haltbarkeit
-  - Reparatur
-  - Harpune
-- game: 2
-  question: '[SCHWER] Wie viele Redstone-Ticks dauert ein Repeater auf maximaler Einstellung?'
-  answer: '4'
-  wrong:
-  - '2'
-  - '3'
-  - '5'
-- game: 2
-  question: '[SCHWER] Wie viele Spielticks entsprechen einem Redstone-Tick?'
-  answer: '2'
-  wrong:
-  - '1'
-  - '4'
-  - '5'
-- game: 2
-  question: '[SCHWER] Wie viele Game-Ticks vergehen pro Sekunde bei 20 TPS?'
-  answer: '20'
-  wrong:
-  - '10'
-  - '40'
-  - '60'
-- game: 2
-  question: '[SCHWER] Wie viele Blöcke hoch ist der maximale Beacon-Pyramidenaufbau?'
-  answer: '4'
-  wrong:
-  - '3'
-  - '5'
-  - '6'
-- game: 2
-  question: '[SCHWER] Welche Verzauberung kann nicht direkt am Zaubertisch erscheinen?'
-  answer: Reparatur
+  - Atmung
+  - Wasseraffinität
+- question: '[SCHWER] Welche Streitkolben-Verzauberung katapultiert den Träger nach einem Treffer hoch?'
+  answer: Windstoß
   wrong:
   - Effizienz
-  - Haltbarkeit
-  - Schärfe
-- game: 2
-  question: '[SCHWER] Welche Verzauberung kann durch Piglin-Tausch erhalten werden?'
-  answer: Seelenläufer
-  wrong:
-  - Federfall
-  - Behutsamkeit
-  - Schnellladen
-- game: 2
-  question: '[SCHWER] Wie viele Werkbank-Slots hat ein Crafter?'
-  answer: '9'
-  wrong:
-  - '6'
-  - '8'
-  - '12'
-- game: 2
-  question: '[SCHWER] Wie viele Herzen Schaden kann ein fallender Amboss maximal verursachen?'
-  answer: '20'
-  wrong:
-  - '10'
-  - '15'
-  - '25'
-- game: 2
-  question: '[SCHWER] Welches Item braucht man zum Herstellen eines Enderkristalls?'
-  answer: Ghast-Träne
-  wrong:
-  - Phantomhaut
-  - Netherstern
-  - Schleimball
-- game: 2
-  question: '[SCHWER] Wie viele Erfahrungspunkte entsprechen Level 30 insgesamt?'
-  answer: '1395'
-  wrong:
-  - '825'
-  - '1200'
-  - '1500'
-- game: 2
-  question: '[SCHWER] Welche Verzauberung ist mit Frostläufer auf Stiefeln unvereinbar?'
-  answer: Wasserläufer
-  wrong:
-  - Federfall
+  - Rückstoß
   - Seelenläufer
-  - Haltbarkeit
-- game: 2
-  question: '[SCHWER] Wie viele Sekunden dauert ein voller Minecraft-Tag in Echtzeit?'
-  answer: '1200'
+- question: '[SCHWER] Welcher Block ist zum Brauen eines Tranks des Webens nötig?'
+  answer: Spinnennetz
   wrong:
-  - '1000'
-  - '1400'
-  - '1800'
-- game: 2
-  question: '[SCHWER] Welcher Effekt erlaubt das Sehen im Dunkeln, nicht durch Wände?'
-  answer: Nachtsicht
+  - Wolle
+  - Faden
+  - Weißer Teppich
+- question: '[SCHWER] Welche Zutat erzeugt den Trank des Befalls?'
+  answer: Stein
   wrong:
-  - Leuchtkraft
-  - Dunkelheit
-  - Glück
-- game: 2
-  question: '[SCHWER] Welches Item kann man NICHT durch einen normalen Zaubertisch erhalten?'
-  answer: Verzaubertes Buch mit Reparatur
+  - Schleimblock
+  - Redstone
+  - Pflasterstein
+- question: '[SCHWER] Welcher Block wird für den Trank des Schleimens verwendet?'
+  answer: Schleimblock
   wrong:
-  - Verzaubertes Buch mit Effizienz
-  - Verzaubertes Buch mit Schärfe
-  - Verzaubertes Buch mit Haltbarkeit
-- game: 2
-  question: '[SCHWER] Wie viele Eisenblöcke benötigt man für einen Eisengolem?'
-  answer: '4'
+  - Schleimball
+  - Honigblock
+  - Schlamm
+- question: '[SCHWER] Was wird für den Trank der Windladung gebraucht?'
+  answer: Brisenrute
   wrong:
-  - '3'
-  - '5'
-  - '6'
-- game: 2
-  question: '[SCHWER] Welche Beute kann ein Warden nach dem Tod droppen?'
-  answer: Sculk-Katalysator
+  - Windladung
+  - Feder
+  - Phantomhaut
+- question: '[SCHWER] Aus welcher Truhe stammt der Schwere Kern für den Streitkolben?'
+  answer: Ominöser Tresor
   wrong:
-  - Netherstern
-  - Echoscherbe
-  - Drachenei
+  - Dorfkiste
+  - Bastionstruhe
+  - Endschiffstruhe
+- question: '[SCHWER] Was benötigt man zusammen mit dem Schweren Kern für einen Streitkolben?'
+  answer: Brisenrute
+  wrong:
+  - Netheritbarren
+  - Stab
+  - Amethystscherbe
+- question: '[SCHWER] Welche besondere Struktur erzeugt einen Breeze in Minecraft?'
+  answer: Prüfungskammer
+  wrong:
+  - Netherfestung
+  - Sumpfhütte
+  - Ancient City
+- question: '[SCHWER] Was macht eine Kupferbirne bei einem Redstone-Impuls?'
+  answer: Wechselt ihren Leuchtzustand
+  wrong:
+  - Explodiert
+  - Wird oxidiert
+  - Setzt Redstone zurück
+- question: '[SCHWER] In welchem Biom erscheint der Knarzender als normaler Mob?'
+  answer: Blasser Garten
+  wrong:
+  - Dunkler Wald
+  - Tropischer Regenwald
+  - Mangrovensumpf
+- question: '[SCHWER] Welche Verzauberung kann einen Pfeil durch mehrere Ziele schießen?'
+  answer: Durchschuss
+  wrong:
+  - Mehrfachschuss
+  - Stärke
+  - Flamme
+- question: '[SCHWER] Wie viele Pfeile verschießt eine Mehrfachschuss-Armbrust pro Schuss?'
+  answer: Drei
+  wrong:
+  - Zwei
+  - Vier
+  - Fünf
+- question: '[SCHWER] Welcher Gegenstand eignet sich zum Duplizieren einer Netherit-Upgrade-Vorlage?'
+  answer: Diamanten und Netherrack
+  wrong:
+  - Gold und Tuff
+  - Eisen und Sandstein
+  - Smaragde und Obsidian
+- question: '[SCHWER] Was ist die Funktion einer ominösen Flasche?'
+  answer: Ominöses Vorzeichen geben
+  wrong:
+  - Netherportal öffnen
+  - Tränke verlängern
+  - Anker füllen
+- question: '[SCHWER] Welche Waffe ignoriert bei Minecraft Java zum Teil den Schild?'
+  answer: Armbrust mit Durchschuss
+  wrong:
+  - Holzschwert
+  - Trident ohne Verzauberung
+  - Schneeball
+- question: '[SCHWER] Welcher Gegenstand wird an der Schmiedevorlage für Rüstungsbesätze verbraucht?'
+  answer: Die Schmiedevorlage
+  wrong:
+  - Der Schmiedetisch
+  - Der Helm doppelt
+  - Das Amboss-Menü
+- question: '[SCHWER] Woher erhält man eine Sniffer-Ei in Survival?'
+  answer: Verdächtiger Sand in warmen Ozeanruinen
+  wrong:
+  - Netherfestung
+  - Wüstentempel
+  - Endportalrahmen
+- question: '[SCHWER] Welcher Mob kann durch Wasser Schaden nehmen?'
+  answer: Enderman
+  wrong:
+  - Ertrunkener
+  - Schildkröte
+  - Wächter
+- question: '[SCHWER] Was kann man mit einem nicht gewachsten Kupferblock beobachten?'
+  answer: Oxidation
+  wrong:
+  - Endstein-Bildung
+  - Lichtverschmutzung
+  - Versteinerung
+- question: '[SCHWER] Was schützt Wolf-Rüstung?'
+  answer: Einen gezähmten Wolf
+  wrong:
+  - Ein Pferd
+  - Einen Armadillo
+  - Einen Schneegolem

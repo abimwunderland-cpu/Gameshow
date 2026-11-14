@@ -1,0 +1,1 @@
+Original Mojang item sprites will be extracted from PrismarineJS/minecraft-assets, data/1.21.8/items/*.png, preserving the unmodified 16x16 image.

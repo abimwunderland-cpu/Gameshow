@@ -1,5 +1,5 @@
 name: WolfsfellGameshow
-version: '0.1.0'
+version: '0.2.0'
 main: de.wolfsfell.gameshow.GameshowPlugin
 api-version: '1.21.11'
 author: WolfsfellTV

@@ -1,6 +1,7 @@
 settings:
+  music-volume: 0.15 # 0=no music, 0.15 subtle, 1.0 loud
   team-size: 3
-  max-teams: 8
+  max-teams: 16
   selection-radius: 1.5
   selection-hold-ticks: 20
   parkour-start-points: 12

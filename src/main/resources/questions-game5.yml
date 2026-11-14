@@ -1,205 +1,194 @@
-# Wolfsfell Gameshow - Schätz mal!
-# 2 Testfragen + 48 Wertungsfragen; die Zahlen sind für Minecraft Java Edition gedacht.
-# Fragen pro Schwierigkeitsgrad zufällig ziehen, keine Wiederholung pro Show.
+# Wolfsfell Gameshow V2: neue Schätzfragen – Test, Mittel, Schwer, Experte.
 questions:
 - id: 1
   difficulty: test
-  question: Wie viele Items passen normalerweise in einen Stack?
-  answer: 64
+  question: Wie viele Eisenbarren braucht ein Eimer?
+  answer: 3
 - id: 2
   difficulty: test
-  question: Wie viele Diamanten braucht man für ein Diamantschwert?
-  answer: 2
+  question: Wie viele Schneebälle passen in einen normalen Stack?
+  answer: 16
 - id: 3
   difficulty: medium
-  question: Wie viele Obsidianblöcke braucht ein Netherportal mindestens?
-  answer: 10
+  question: Wie viele Eisenbarren braucht man für 4 Eimer?
+  answer: 12
 - id: 4
   difficulty: medium
-  question: Wie viele Bücherregale braucht ein Verzauberungstisch für Level 30?
-  answer: 15
+  question: Wie viele Ziegel braucht man zum Craften eines Ziegelblocks?
+  answer: 4
 - id: 5
   difficulty: medium
-  question: Wie viele Endportalrahmen bilden ein Endportal?
-  answer: 12
+  question: Wie viele Ladungen kann ein Respawn-Anker maximal speichern?
+  answer: 4
 - id: 6
   difficulty: medium
-  question: Wie viele Sekunden dauert ein vollständiger Minecraft-Tag?
-  answer: 1200
+  question: Wie viele Anker braucht man, um 12 volle Ladungen zu speichern?
+  answer: 3
 - id: 7
   difficulty: medium
-  question: Wie viele Slots hat eine normale Truhe?
-  answer: 27
+  question: Wie viele Obsidianblöcke braucht man für zwei minimale Netherportale?
+  answer: 20
 - id: 8
   difficulty: medium
-  question: Wie viele Slots hat eine Doppelkiste?
-  answer: 54
+  question: Wie viele Sekunden braucht ein normaler Ofen zum Schmelzen von 8 Items?
+  answer: 80
 - id: 9
   difficulty: medium
-  question: Wie viele Eisenbarren braucht man für einen vollständigen Eisenrüstungssatz?
-  answer: 24
+  question: Wie viele Items schmilzt ein Lavaeimer im Ofen?
+  answer: 100
 - id: 10
   difficulty: medium
-  question: Wie viele Diamanten braucht man für einen vollständigen Diamantrüstungssatz?
-  answer: 24
+  question: Wie viele Items schmilzt ein Block getrockneter Seetang?
+  answer: 20
 - id: 11
   difficulty: medium
-  question: Wie viele Blöcke hoch kann Zuckerrohr ohne zusätzliche Wachstumsmechaniken natürlich werden?
-  answer: 3
-- id: 12
-  difficulty: medium
-  question: Wie viele Blöcke Wasser kann ein einzelner Wassereimer als Quelle platzieren?
-  answer: 1
+  question: Wie viele Items schmilzt ein Lohenstab im Ofen?
+  answer: 12
 - id: 13
   difficulty: medium
-  question: Wie viele Blöcke beträgt die Reichweite eines vollständig ausgebauten Beacons nach außen?
-  answer: 50
+  question: Wie viele Schneebälle passen in einen vollen Stack?
+  answer: 16
 - id: 14
   difficulty: medium
-  question: Wie viele Netherwarzen braucht man für einen Netherwarzenblock?
-  answer: 9
+  question: Wie viele Slots hat ein einzelnes Shulkerkästchen?
+  answer: 27
 - id: 15
-  difficulty: hard
-  question: Wie viele Items passen in eine Doppelkiste, wenn alle Slots mit 64er-Stacks gefüllt sind?
-  answer: 3456
-- id: 16
-  difficulty: hard
-  question: Wie viele Eisenbarren braucht man für einen Eisenblock?
+  difficulty: medium
+  question: Wie viele Goldbarren braucht man für einen Goldblock?
   answer: 9
+- id: 16
+  difficulty: medium
+  question: Wie viele Glasblöcke enthält das Rezept eines Beacons?
+  answer: 5
 - id: 17
-  difficulty: hard
-  question: Wie viele Eisenbarren braucht man für einen Amboss?
-  answer: 31
+  difficulty: medium
+  question: Wie viele Obsidianblöcke enthält das Rezept eines Beacons?
+  answer: 3
 - id: 18
-  difficulty: hard
-  question: Wie viele Obsidianblöcke braucht ein maximales rechteckiges Netherportal ohne Ecken?
-  answer: 84
+  difficulty: medium
+  question: Wie viele Bienenwachs-Honigwaben braucht man, um einen Bienenstock zu craften?
+  answer: 3
 - id: 19
   difficulty: hard
-  question: Wie viele Blöcke beträgt die Höhendifferenz von Y=-64 bis Y=320?
-  answer: 384
+  question: Wie viel Gesundheit hat ein Warden in Lebenspunkten?
+  answer: 500
 - id: 20
   difficulty: hard
-  question: Auf welcher Y-Koordinate liegt die oberste platzierbare Blockschicht der Oberwelt?
-  answer: 319
+  question: Wie viel Gesundheit hat ein Wither in Java auf normal in Lebenspunkten?
+  answer: 300
 - id: 21
   difficulty: hard
-  question: Wie viele Enderaugen braucht man, um alle 12 leeren Endportalrahmen zu füllen?
-  answer: 12
+  question: Wie viel Gesundheit hat der Enderdrache in Lebenspunkten?
+  answer: 200
 - id: 22
   difficulty: hard
-  question: Wie viele Sekunden dauert ein Trank mit Dauer 3:00?
-  answer: 180
+  question: Wie viel Gesundheit hat ein Eisengolem in Lebenspunkten?
+  answer: 100
 - id: 23
   difficulty: hard
-  question: Wie viele Items passen in einen vollständig gefüllten Trichter mit 64er-Stacks?
-  answer: 320
+  question: Wie viel Gesundheit hat ein Verwüster in Lebenspunkten?
+  answer: 100
 - id: 24
   difficulty: hard
-  question: Wie viele Goldbarren braucht man für 8 Goldblöcke?
-  answer: 72
+  question: Wie viel Gesundheit hat ein Elder Guardian in Lebenspunkten?
+  answer: 80
 - id: 25
   difficulty: hard
-  question: Wie viele Redstone-Staub braucht man für 16 Redstone-Blöcke?
-  answer: 144
+  question: Wie viel Gesundheit hat ein Piglin Brute in Lebenspunkten?
+  answer: 50
 - id: 26
   difficulty: hard
-  question: Wie viele Blöcke kann man mit einem Stack Leitern vertikal erklimmen, wenn jede Leiter einen Block belegt?
-  answer: 64
+  question: Wie viel Gesundheit hat ein Shulker in Lebenspunkten?
+  answer: 30
 - id: 27
-  difficulty: expert
-  question: Wie viele Eisenblöcke braucht eine vollständige Beacon-Pyramide mit vier Ebenen?
-  answer: 164
+  difficulty: hard
+  question: Wie viel Gesundheit hat ein Schneegolem in Lebenspunkten?
+  answer: 4
 - id: 28
-  difficulty: expert
-  question: Wie viele Eisenbarren braucht eine vollständige Beacon-Pyramide mit vier Ebenen?
-  answer: 1476
+  difficulty: hard
+  question: Wie viele Blöcke braucht die volle vierstufige Beacon-Pyramide?
+  answer: 164
 - id: 29
-  difficulty: expert
-  question: Wie viele Netheritebarren braucht eine vollständige Beacon-Pyramide mit vier Ebenen?
-  answer: 1476
+  difficulty: hard
+  question: Wie viele Blöcke braucht die kleinste Beacon-Pyramide?
+  answer: 9
 - id: 30
-  difficulty: expert
-  question: Wie viele Ancient Debris braucht man für einen Netheriteblock?
-  answer: 36
+  difficulty: hard
+  question: Wie viele Blöcke braucht die zweistufige Beacon-Pyramide insgesamt?
+  answer: 34
 - id: 31
-  difficulty: expert
-  question: Wie viele Ancient Debris braucht eine vollständige Beacon-Pyramide aus Netheriteblöcken?
-  answer: 5904
+  difficulty: hard
+  question: Wie viele Blöcke braucht die dreistufige Beacon-Pyramide insgesamt?
+  answer: 83
 - id: 32
-  difficulty: expert
-  question: Wie viele Items passen in 27 komplett mit 64er-Stacks gefüllte Shulkerkisten?
-  answer: 46656
+  difficulty: hard
+  question: Wie viele Trefferpunkte hat ein Spieler ohne Extraherzen?
+  answer: 20
 - id: 33
-  difficulty: expert
-  question: Wie viele Items passen in eine Doppelkiste voller Shulkerkisten, wenn jede Shulkerkiste 27 volle 64er-Stacks
-    enthält?
-  answer: 93312
+  difficulty: hard
+  question: Wie lange dauert ein Minecraft-Tag in Ticks?
+  answer: 24000
 - id: 34
   difficulty: expert
-  question: Wie viele Eisenbarren braucht man für 64 Eisenblöcke?
-  answer: 576
+  question: Wie viele Haltbarkeitspunkte hat eine Elytra (vor dem Zerbrechen)?
+  answer: 432
 - id: 35
   difficulty: expert
-  question: Wie viele Sekunden dauern 100 Minecraft-Tage ohne Schlafen?
-  answer: 120000
+  question: Wie viele Haltbarkeitspunkte hat ein Diamantschwert?
+  answer: 1561
 - id: 36
   difficulty: expert
-  question: Wie viele Stacks zu je 64 Items sind 4096 Items?
-  answer: 64
+  question: Wie viele Haltbarkeitspunkte hat ein Netherit-Schwert?
+  answer: 2031
 - id: 37
   difficulty: expert
-  question: Wie viele Blöcke Fläche hat eine vollständig gefüllte 16x16-Chunk-Ebene?
-  answer: 256
+  question: Wie viele Haltbarkeitspunkte hat ein Eisenschwert?
+  answer: 250
 - id: 38
   difficulty: expert
-  question: Wie viele Blöcke Volumen hat ein Chunkabschnitt mit 16x16x16 Blöcken?
-  answer: 4096
+  question: Wie viele Haltbarkeitspunkte hat ein Steinschwert?
+  answer: 131
 - id: 39
-  difficulty: medium
-  question: Wie viele Holzplanken bekommt man aus einem Holzstamm beim normalen Crafting?
-  answer: 4
+  difficulty: expert
+  question: Wie viele Haltbarkeitspunkte hat ein Holzschwert?
+  answer: 59
 - id: 40
-  difficulty: medium
-  question: Wie viele Stöcke bekommt man aus zwei Holzplanken beim normalen Crafting?
-  answer: 4
+  difficulty: expert
+  question: Wie viele Haltbarkeitspunkte hat ein Goldschwert?
+  answer: 32
 - id: 41
-  difficulty: medium
-  question: Wie viele Steine braucht man für einen Ofen?
-  answer: 8
+  difficulty: expert
+  question: Wie viele Haltbarkeitspunkte hat ein Bogen?
+  answer: 384
 - id: 42
-  difficulty: medium
-  question: Wie viele Lederstücke braucht man für einen vollständigen Lederrüstungssatz?
-  answer: 24
+  difficulty: expert
+  question: Wie viele Haltbarkeitspunkte hat eine Armbrust?
+  answer: 465
 - id: 43
-  difficulty: hard
-  question: Wie viele Blöcke umfasst die Grundfläche einer 9x9 Beacon-Pyramidenbasis?
-  answer: 81
+  difficulty: expert
+  question: Wie viele Items passen in 4 komplett gefüllte Doppelkisten mit 64er-Stacks?
+  answer: 13824
 - id: 44
-  difficulty: hard
-  question: Wie viele Blöcke umfasst die zweite Ebene einer maximalen Beacon-Pyramide (7x7)?
-  answer: 49
+  difficulty: expert
+  question: Wie viele Items passen in 9 komplett gefüllte Shulkerkisten mit 64er-Stacks?
+  answer: 15552
 - id: 45
-  difficulty: hard
-  question: Wie viele Blöcke umfasst die dritte Ebene einer maximalen Beacon-Pyramide (5x5)?
-  answer: 25
+  difficulty: expert
+  question: Wie viele Items passen in 16 normale Truhen mit 64er-Stacks?
+  answer: 27648
 - id: 46
-  difficulty: hard
-  question: Wie viele Blöcke umfasst die vierte Ebene einer maximalen Beacon-Pyramide (3x3)?
-  answer: 9
+  difficulty: expert
+  question: Wie viele Eisenbarren benötigt man für 64 Eisengolems (ohne Kürbis)?
+  answer: 2304
 - id: 47
   difficulty: expert
-  question: Wie viele Obsidianblöcke benötigt man für 16 minimale Netherportale ohne gemeinsame Blöcke?
-  answer: 160
+  question: Wie viele Netherite-Schrottteile braucht man für 64 Netherite-Barren?
+  answer: 256
 - id: 48
   difficulty: expert
-  question: Wie viele Eisenbarren braucht man für 32 Ambosse?
-  answer: 992
+  question: Wie viele Diamanten benötigen 16 volle Diamantrüstungen?
+  answer: 384
 - id: 49
   difficulty: expert
-  question: Wie viele volle 64er-Stacks passen in neun Doppelkisten?
-  answer: 486
-- id: 50
-  difficulty: expert
-  question: Wie viele Blöcke enthält ein vollständig gefüllter 16x16x16 Würfel?
-  answer: 4096
+  question: Wie viele Blöcke Fläche umfasst ein Quadrat aus 3 mal 3 Chunks?
+  answer: 2304

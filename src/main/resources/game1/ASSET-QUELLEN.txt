@@ -1,0 +1,2 @@
+Minecraft Itemtexturen (unverändert, 16x16): https://github.com/PrismarineJS/minecraft-assets/tree/master/data/1.21.8/items
+Mojang-Spielgrafiken. Diese Assets nicht als eigene Werke ausgeben.
