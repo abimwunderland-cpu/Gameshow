@@ -1,4 +1,5 @@
 settings:
+  force-adventure: true # Everybody except the two active Kit-UHC fighters. Use /wg adventure off while editing.
   music-volume: 0.15 # 0=no music, 0.15 subtle, 1.0 loud
   team-size: 3
   max-teams: 16

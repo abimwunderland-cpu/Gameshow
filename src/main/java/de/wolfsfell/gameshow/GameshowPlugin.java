@@ -32,6 +32,8 @@ import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -49,6 +51,53 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         "Brisenrute","Windladung","Pinsel","Drachenatem","Enderkristall","OminoesFlasche","NetheritUpgrade","Streitkolben","Ziegenhorn","Wolfsruestung",
         "Wiederherstellungskompass","StilleVorlage","SchnuefflerEi","Schallplattenfragment","GuerteltierHornplatte","OminoeserTrialschluessel","HerzDesMeeres","Blasseichenboot","Harzklumpen","Schallplatte5","Echoscherbe"
     );
+    /** Minecraft Java 1.21.11 de_de/en_us display names; keys match bundled sprite filenames. */
+    private record GameOneName(String german, String english, Set<String> accepted) {}
+    private static final Map<String,GameOneName> GAME1_NAMES=new LinkedHashMap<>();
+    private static void itemName(String id,String de,String en,String... aliases){
+        Set<String> normalized=new HashSet<>();
+        normalized.add(normalizeGameOneItem(id));
+        normalized.add(normalizeGameOneItem(de));
+        normalized.add(normalizeGameOneItem(en));
+        for(String alias:aliases)normalized.add(normalizeGameOneItem(alias));
+        GAME1_NAMES.put(id,new GameOneName(de,en,Set.copyOf(normalized)));
+    }
+    static {
+        itemName("Enderperle","Enderperle","Ender Pearl");
+        itemName("Unsterblichkeitstotem","Totem der Unsterblichkeit","Totem of Undying","Unsterblichkeitstotem","Totem");
+        itemName("Netheritbarren","Netheritbarren","Netherite Ingot");
+        itemName("Amethystscherbe","Amethystscherbe","Amethyst Shard");
+        itemName("Eisenschwert","Eisenschwert","Iron Sword");
+        itemName("Netherstern","Netherstern","Nether Star");
+        itemName("Kompass","Kompass","Compass");
+        itemName("Schleimball","Schleimball","Slimeball","Slime Ball");
+        itemName("Fernrohr","Fernrohr","Spyglass");
+        itemName("TNT","TNT","TNT");
+        itemName("Brisenrute","Böenrute","Breeze Rod","Brisenrute","Breezestab");
+        itemName("Windladung","Windkugel","Wind Charge","Windladung","Windkugeln");
+        itemName("Pinsel","Pinsel","Brush");
+        itemName("Drachenatem","Drachenatem","Dragon's Breath","Dragons Breath");
+        itemName("Enderkristall","Enderkristall","End Crystal","End Crystal Item");
+        itemName("OminoesFlasche","Unheilvolle Flasche","Ominous Bottle","Ominöse Flasche");
+        itemName("NetheritUpgrade","Netheritaufwertung","Netherite Upgrade","Netherit-Upgrade","Netherit Upgrade","Netherite Upgrade Smithing Template","Netheritaufwertung Schmiedevorlage");
+        itemName("Streitkolben","Streitkolben","Mace","Hammer");
+        itemName("Ziegenhorn","Ziegenhorn","Goat Horn");
+        itemName("Wolfsruestung","Wolfspanzer","Wolf Armor","Wolfsrüstung","Wolf Rüstung");
+        itemName("Wiederherstellungskompass","Wiederherstellungskompass","Recovery Compass");
+        itemName("StilleVorlage","Stille-Rüstungsbesatz","Silence Armor Trim","Silence Smithing Template","Schmiedevorlage Stille");
+        itemName("SchnuefflerEi","Schnüffler-Ei","Sniffer Egg","Schnüfflerei");
+        itemName("Schallplattenfragment","Schallplattenfragment","Disc Fragment","Disc Fragment 5");
+        itemName("GuerteltierHornplatte","Gürteltier-Hornplatte","Armadillo Scute","Gürteltierplatte");
+        itemName("OminoeserTrialschluessel","Unheilvoller Prüfungsschlüssel","Ominous Trial Key","Ominöser Prüfungsschlüssel","Ominous Key");
+        itemName("HerzDesMeeres","Herz des Meeres","Heart of the Sea");
+        itemName("Blasseichenboot","Blasseichenholzboot","Pale Oak Boat","Blasseichenboot");
+        itemName("Harzklumpen","Harzklumpen","Resin Clump");
+        itemName("Schallplatte5","Schallplatte 5","Music Disc 5","Musikplatte 5","Schallplatte Fünf");
+        itemName("Echoscherbe","Echoscherbe","Echo Shard");
+    }
+    String gameOneGerman(String id){GameOneName n=GAME1_NAMES.get(id);return n==null?id:n.german();}
+    String gameOneEnglish(String id){GameOneName n=GAME1_NAMES.get(id);return n==null?id:n.english();}
+    private String gameOneBilingual(String id){return "§f"+gameOneGerman(id)+" §7/ §b"+gameOneEnglish(id);}
     private static final int MAX_TEAMS=16;
     private final Map<String,Integer> scoreAdjustments=new HashMap<>();
     private final Map<String,Map<Integer,Integer>> scoreOverrides=new HashMap<>();
@@ -188,6 +237,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         Bukkit.getScheduler().runTaskLater(this, this::refreshGameBoard, 60L);
         Bukkit.getScheduler().runTaskLater(this, this::removeStaleChestMarkers, 80L);
         Bukkit.getScheduler().runTaskLater(this, () -> { clearLegacyNeonDisplays(); restoreRegionNeon(); refreshAllArmor(); refreshBuzzerColors(); }, 20L);
+        Bukkit.getScheduler().runTaskLater(this,this::ensureAdventureModes,1L);
         clock = Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         Bukkit.getScheduler().runTaskTimer(this,this::updateDisplays,40L,40L);
         Bukkit.getScheduler().runTaskTimer(this,this::syncTeamOutfits,100L,100L);
@@ -252,8 +302,28 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             nextMusicAt=now+8000;
         }
     }
+    /** Adventure is the default for everyone; only the two live Kit-UHC fighters may use Survival. */
+    private boolean adventureEnabled(){return getConfig().getBoolean("settings.force-adventure",true);}
+    private void ensureAdventure(Player p){
+        if(!p.isOnline() || !adventureEnabled())return;
+        if(gameNine!=null && gameNine.isActiveFighter(p.getUniqueId()))return;
+        if(p.getGameMode()!=GameMode.ADVENTURE)p.setGameMode(GameMode.ADVENTURE);
+    }
+    private void ensureAdventureModes(){for(Player p:Bukkit.getOnlinePlayers())ensureAdventure(p);}
+    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)
+    public void preventOtherGameModes(PlayerGameModeChangeEvent e){
+        if(adventureEnabled() && e.getNewGameMode()!=GameMode.ADVENTURE
+            && (gameNine==null || !gameNine.isActiveFighter(e.getPlayer().getUniqueId())))e.setCancelled(true);
+    }
+    @EventHandler public void keepAdventureOnRespawn(PlayerRespawnEvent e){
+        Bukkit.getScheduler().runTaskLater(this,()->ensureAdventure(e.getPlayer()),1L);
+    }
+    @EventHandler public void keepAdventureOnWorldChange(PlayerChangedWorldEvent e){
+        Bukkit.getScheduler().runTaskLater(this,()->ensureAdventure(e.getPlayer()),1L);
+    }
     private void tick() {
         updateMusic();
+        if(gameTickCounter%20==0)ensureAdventureModes();
         if(gameTickCounter%100==0 && (game!=9 || !running))for(Player player:Bukkit.getOnlinePlayers()){
             if(player.getFoodLevel()<20)player.setFoodLevel(20);
             player.setSaturation(20f);
@@ -284,7 +354,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
 
         if(!running)return;
         if(game==1 && game1QuestionActive && buzzed==null)gameOneScreen.advance();
-        if(game==1 && game1QuestionActive && buzzed==null && System.currentTimeMillis()>=game1RoundEnds){game1QuestionActive=false;gameOneScreen.reveal();broadcast("§eRunde abgelaufen! Antwort: "+correctAnswer);Bukkit.getScheduler().runTaskLater(this,()->{if(running&&game==1)nextQuestion();},60L);}
+        if(game==1 && game1QuestionActive && buzzed==null && System.currentTimeMillis()>=game1RoundEnds){game1QuestionActive=false;gameOneScreen.reveal();broadcast("§eRunde abgelaufen! Antwort: "+gameOneBilingual(correctAnswer));Bukkit.getScheduler().runTaskLater(this,()->{if(running&&game==1)nextQuestion();},60L);}
         if(game==1 && buzzed!=null && System.currentTimeMillis()>=buzzDeadline){
             broadcast("§c10 Sekunden vorbei! §7Buzzer wieder frei.");buzzed=null;buzzDeadline=0;game1RoundEnds=System.currentTimeMillis()+game1RemainingOnBuzz;gameOneScreen.resume();
         }
@@ -599,7 +669,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
     public void parkourNoDamage(org.bukkit.event.entity.EntityDamageEvent e){
         if(game==7 && e.getEntity() instanceof Player)e.setCancelled(true);
     }
-    @EventHandler public void onJoin(PlayerJoinEvent e) { Bukkit.getScheduler().runTaskLater(this,()->{restoreGame2Inventory(e.getPlayer());if(game!=9||!running)e.getPlayer().setFoodLevel(20);updateDisplays();},20); }
+    @EventHandler public void onJoin(PlayerJoinEvent e) { Bukkit.getScheduler().runTaskLater(this,()->{restoreGame2Inventory(e.getPlayer());if(game!=9||!running)e.getPlayer().setFoodLevel(20);ensureAdventure(e.getPlayer());updateDisplays();},1L); }
     @EventHandler public void onQuit(PlayerQuitEvent e) { stablePlayerBoards.remove(e.getPlayer().getUniqueId()); if(e.getPlayer().getUniqueId().equals(buzzed))buzzed=null; }
     /** Single Paper chat entry point: no duplicate submissions via AsyncPlayerChatEvent. */
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=false)
@@ -640,7 +710,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
                 if(gameOneItemMatches(submitted,correctAnswer)){
                     int pts=gameOneScreen.points();
                     quizScores.merge(team,pts,Integer::sum);individual.merge(p.getUniqueId(),pts,Integer::sum);updateDisplays();
-                    broadcast("§a"+team+" – RICHTIG! §a+"+pts+" Rohpunkte (Stufe "+gameOneScreen.stage()+"/7) §7("+p.getName()+") §f– "+correctAnswer);
+                    broadcast("§a"+team+" – RICHTIG! §a+"+pts+" Rohpunkte (Stufe "+gameOneScreen.stage()+"/7) §7("+p.getName()+") §f– "+gameOneBilingual(correctAnswer));
                     buzzed=null;buzzDeadline=0;game1QuestionActive=false;gameOneScreen.reveal();
                     Bukkit.getScheduler().runTaskLater(this,()->{if(running && game==1)nextQuestion();},60L);
                 }else{
@@ -651,26 +721,14 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         }
     }
     /** Flush answers BEFORE a quiz is evaluated; arrival timestamp, not scheduling time, decides validity. */
-    private String normalizeGameOneItem(String input){
+    private static String normalizeGameOneItem(String input){
         return input.toLowerCase(Locale.ROOT).strip().replace("ä","ae").replace("ö","oe").replace("ü","ue").replace("ß","ss")
             .replaceAll("[^a-z0-9]","");
     }
     private boolean gameOneItemMatches(String typed,String expected){
-        String a=normalizeGameOneItem(typed),b=normalizeGameOneItem(expected);
-        if(a.equals(b))return true;
-        return switch(expected){
-            case "OminoeserTrialschluessel" -> Set.of("ominoeserschluessel","ominoustrialkey","ominoestrialkey","ominouserschluessel").contains(a);
-            case "Trialschluessel" -> Set.of("schluessel","trialkey").contains(a);
-            case "Brisenrute" -> Set.of("breezerod","breezestab","brisenstab").contains(a);
-            case "Streitkolben" -> Set.of("mace","hammer").contains(a);
-            case "GuerteltierHornplatte" -> Set.of("guerteltierplatte","armadilloscute","hornplatte").contains(a);
-            case "NetheritUpgrade" -> Set.of("netheriteupgradeschmiedevorlage","netheritverbesserung").contains(a);
-            case "StilleVorlage" -> Set.of("silenceschmiedevorlage","silencearmortrim").contains(a);
-            case "HerzDesMeeres" -> Set.of("heartofthesea").contains(a);
-            case "Schallplatte5" -> Set.of("musicdisc5","5").contains(a);
-            case "OminoesFlasche" -> Set.of("ominousbottle","unheilvolleflasche").contains(a);
-            default -> false;
-        };
+        GameOneName answer=GAME1_NAMES.get(expected);
+        if(answer==null)return normalizeGameOneItem(typed).equals(normalizeGameOneItem(expected));
+        return answer.accepted().contains(normalizeGameOneItem(typed));
     }
     private void flushPendingEstimates(){
         PendingEstimate pending;
@@ -1351,8 +1409,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         broadcast("§5§lFINALE! §f"+a+" §dVS §f"+b+" §7– Vorteilspunkte sammeln!");
         for(Player player:Bukkit.getOnlinePlayers()){
             String t=team(player.getUniqueId());
-            if(t!=null && !finalists.contains(t))player.setGameMode(GameMode.SPECTATOR);
-            else if(t!=null && finalists.contains(t) && player.getGameMode()==GameMode.SPECTATOR)player.setGameMode(GameMode.ADVENTURE);
+            if(player.getGameMode()!=GameMode.ADVENTURE)player.setGameMode(GameMode.ADVENTURE);
             player.sendTitle("§d"+a+" §fVS §d"+b,"§eDAS FINALE – VORTEILE SAMMELN!",10,100,20);
             player.playSound(player.getLocation(),Sound.UI_TOAST_CHALLENGE_COMPLETE,0.8f,1f);
         }
@@ -1791,6 +1848,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             say(sender,"/wg studio lock|unlock | /wg region save selection:<Team> | /wg select on/off");
             say(sender,"/wg neon save <Team> | /wg neon selection <Team> | /wg neon clear <Team> | /wg neon cleanup");
             say(sender,"/wg reset scores | /wg reset game1 | /wg candidate set <Team> <Spieler> | /wg candidates | /wg screen set|test|remove | /wg buzzer set <Team> (Knopf ansehen) | /wg game <1-9> | /wg start | /wg stop | /wg status | /wg tp <Ort>");
+            say(sender,"/wg adventure on|off|status (Adventure-Modus für alle, außer aktive UHC-Kämpfer)");
             say(sender,"/wg score add|remove|set <Team> <Zahl> | /wg score game <1-5> <Team> <0-100> | /wg score history <Team> | /wg score undo");
             say(sender,"/wg wand game7 | /wg game7 tp|start|stop | /wg wand game8 | /wg game8 tp|start|stop|raus");
             say(sender,"GAME 3: /wg wand game3 | /wg tp game 3 | /wg game3 start|stop | /wg screen idle");
@@ -1923,6 +1981,20 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             if(args.length<2){say(sender,"/wg studio lock|unlock|status");return true;}
             if(args[1].equalsIgnoreCase("status")){say(sender,"Studio gesperrt: "+studioLocked+", Auswahl: "+selectionEnabled);return true;}
             studioLocked=args[1].equalsIgnoreCase("lock");selectionEnabled=false;saveState();say(sender,studioLocked?"Studio geschlossen: Teams bleiben in ihren Käfigen.":"Studio offen.");return true;
+        }
+        if(cmd.equals("adventure")){
+            if(!admin(sender))return true;
+            if(args.length<2 || args[1].equalsIgnoreCase("status")){
+                say(sender,"Adventure-Zwang: "+(adventureEnabled()?"AKTIV":"DEAKTIVIERT")+". /wg adventure on|off|status");return true;
+            }
+            if(!args[1].equalsIgnoreCase("on") && !args[1].equalsIgnoreCase("off")){
+                say(sender,"/wg adventure on|off|status");return true;
+            }
+            boolean enable=args[1].equalsIgnoreCase("on");
+            getConfig().set("settings.force-adventure",enable);saveConfig();
+            if(enable)ensureAdventureModes();
+            say(sender,enable?"§aAlle Spieler sind jetzt im Adventure-Modus (außer aktive Kit-UHC-Kämpfer).":"§eAdventure-Zwang für den Map-Bau vorübergehend deaktiviert.");
+            return true;
         }
         if(cmd.equals("status")){say(sender,"Spiel "+game+(game>0?" ("+GAMES[game-1]+")":"")+", aktiv="+running+", Spielerwahl="+selectionEnabled+", Finalisten="+finalists);for(String t:teams.keySet())say(sender,t+" ("+teams.get(t).size()+"/3) | Vorrunde "+qualifying.getOrDefault(t,0)+" | Vorteile "+advantages.getOrDefault(t,0));return true;}
         if(cmd.equals("team")&&args.length>=2){
@@ -2117,7 +2189,8 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         say(p,"Gekauft: "+item+" für "+cost+" Punkte. Rest: "+advantages.get(t));p.playSound(p.getLocation(),"wolfsfell.purchase",1f,1f);saveState();
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args){
-        if(args.length==1)return Arrays.stream(new String[]{"board","screen","game3","game5","game6","game7","game8","game9","help","status","studio","team","wand","region","neon","set","tp","select","game","start","stop","score","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==1)return Arrays.stream(new String[]{"board","screen","game3","game5","game6","game7","game8","game9","help","status","adventure","studio","team","wand","region","neon","set","tp","select","game","start","stop","score","raw","rank","qualify","finalist","basket","parkour","chest","points","spend","buzzer","candidate","candidates","reset","next","finishround","target","checkpoint","shop"}).filter(x->x.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(args.length==2&&args[0].equalsIgnoreCase("adventure"))return List.of("on","off","status");
         if(args.length==2&&args[0].equalsIgnoreCase("score"))return List.of("add","remove","set","game","history","undo");
         if(args.length==3&&args[0].equalsIgnoreCase("score")&&List.of("add","remove","set","history").contains(args[1].toLowerCase(Locale.ROOT)))return new ArrayList<>(teams.keySet());
         if(args.length==3&&args[0].equalsIgnoreCase("score")&&args[1].equalsIgnoreCase("game"))return List.of("1","2","3","4","5");

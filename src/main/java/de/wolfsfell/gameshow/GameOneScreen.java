@@ -264,7 +264,14 @@ final class GameOneScreen {
             g.drawImage(small,cx+120,170,centerWidth-120,centerWidth-120,null);
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             text(g,"STUFE "+stage()+" / 7",cx+310,90,68,java.awt.Color.WHITE);
-            text(g,"RICHTIG: +10 PUNKTE",cx+185,HEIGHT-65,55,new java.awt.Color(255,217,99));
+            if(phase>=7){
+                g.setColor(new java.awt.Color(20,16,38,235));
+                g.fillRoundRect(cx+30,HEIGHT-235,centerWidth-60,220,25,25);
+                centered(g,"DE: "+plugin.gameOneGerman(current),HEIGHT-160,centerWidth-100,52,Color.WHITE);
+                centered(g,"EN: "+plugin.gameOneEnglish(current),HEIGHT-75,centerWidth-100,47,new Color(197,160,255));
+            }else{
+                text(g,"JETZT +"+points()+" ROHPUNKTE",cx+160,HEIGHT-65,49,new java.awt.Color(255,217,99));
+            }
             if(frozen)text(g,"BUZZ!",cx+410,165,62,new java.awt.Color(255,130,191));
         }else{
             centered(g,"TWITCH",350,centerWidth-80,90,new Color(202,137,255));

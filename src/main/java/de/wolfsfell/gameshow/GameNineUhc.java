@@ -42,6 +42,7 @@ final class GameNineUhc implements Listener {
     private void announce(String message){Bukkit.broadcastMessage("§d§l[WOLFSFELL FINALE] §r"+message);}
     private Location point(String key){return plugin.uhcLocation("game9-"+key);}
     boolean isActive(){return prepared||active;}
+    boolean isActiveFighter(UUID playerId){return isActive() && fighters.contains(playerId);}
     private String key(Block b){return b.getWorld().getUID()+":"+b.getX()+":"+b.getY()+":"+b.getZ();}
     private boolean inside(Location location){
         Location a=point("corner-a"),b=point("corner-b");
@@ -82,7 +83,7 @@ final class GameNineUhc implements Listener {
         Location stand=point("spectator");
         for(Player p:Bukkit.getOnlinePlayers())if(!duel.contains(p)){
             p.teleport(stand);
-            if(!p.hasPermission("wg.admin"))p.setGameMode(GameMode.SPECTATOR);
+            p.setGameMode(GameMode.ADVENTURE);
         }
         tell(s,"Kämpfer am Spawn. Zuschauer auf der Tribüne. /wg game9 start startet das Finale.");
     }
@@ -108,7 +109,7 @@ final class GameNineUhc implements Listener {
         Location tribune=point("spectator");
         for(Player p:Bukkit.getOnlinePlayers())if(!fighters.contains(p.getUniqueId())){
             p.teleport(tribune);
-            if(!p.hasPermission("wg.admin"))p.setGameMode(GameMode.SPECTATOR);
+            p.setGameMode(GameMode.ADVENTURE);
         }
         announce("§eKIT-UHC §7| §f"+plugin.uhcFinalists().get(0)+" §dVS §f"+plugin.uhcFinalists().get(1));
         countdown=Bukkit.getScheduler().runTaskTimer(plugin,new Runnable(){int ticks=5;
@@ -151,7 +152,7 @@ final class GameNineUhc implements Listener {
     void shutdown(){if(pvpWorld!=null&&previousPvp!=null)pvpWorld.setPVP(previousPvp);sequence++;if(countdown!=null)countdown.cancel();cleanup();for(Player p:Bukkit.getOnlinePlayers())restore(p);prepared=false;active=false;}
     private void restore(Player p){SavedPlayer old=backups.remove(p.getUniqueId());if(old==null)return;
         PlayerInventory inv=p.getInventory();inv.clear();inv.setStorageContents(old.storage());inv.setArmorContents(old.armor());inv.setItemInOffHand(old.offhand());
-        p.setGameMode(old.mode());p.setAllowFlight(old.allowFlight());if(old.allowFlight())p.setFlying(old.flying());
+        p.setGameMode(GameMode.ADVENTURE);p.setAllowFlight(old.allowFlight());if(old.allowFlight())p.setFlying(old.flying());
         p.setHealth(Math.min(p.getMaxHealth(),Math.max(1,old.health())));p.setFoodLevel(old.food());p.setSaturation(old.saturation());p.setFireTicks(0);
         p.updateInventory();
     }
@@ -189,7 +190,7 @@ final class GameNineUhc implements Listener {
         }else announce("§cKit-UHC wurde abgebrochen – kein Gewinner.");
         // Restore fight inventory once celebration is visible. Original items are never dropped.
         Bukkit.getScheduler().runTaskLater(plugin,()->{
-            for(UUID id:new HashSet<>(fighters)){Player p=Bukkit.getPlayer(id);if(p!=null){restore(p);if(winning!=null){if(p.getUniqueId().equals(plugin.uhcSelected(winning)))p.setGameMode(GameMode.ADVENTURE);else {p.setGameMode(GameMode.SPECTATOR);Location stand=point("spectator");if(stand!=null)p.teleport(stand);}}}}
+            for(UUID id:new HashSet<>(fighters)){Player p=Bukkit.getPlayer(id);if(p!=null){restore(p);if(winning!=null){if(p.getUniqueId().equals(plugin.uhcSelected(winning)))p.setGameMode(GameMode.ADVENTURE);else {p.setGameMode(GameMode.ADVENTURE);Location stand=point("spectator");if(stand!=null)p.teleport(stand);}}}}
             fighters.clear();fighterSpawns.clear();
         },60L);
     }
@@ -201,6 +202,14 @@ final class GameNineUhc implements Listener {
     }
     private Block lookup(String id){try{String[] parts=id.split(":");World w=Bukkit.getWorld(UUID.fromString(parts[0]));return w==null?null:w.getBlockAt(Integer.parseInt(parts[1]),Integer.parseInt(parts[2]),Integer.parseInt(parts[3]));}catch(Exception ignored){return null;}}
     private boolean participant(Player p){return fighters.contains(p.getUniqueId());}
+    /** Adventure-mode spectators are not permitted to participate in Kit-UHC PvP. */
+    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)
+    public void preventAudiencePvp(EntityDamageByEntityEvent e){
+        if(!isActive() || !(e.getEntity() instanceof Player target))return;
+        org.bukkit.entity.Entity source=e.getDamager();
+        if(source instanceof org.bukkit.entity.Projectile projectile && projectile.getShooter() instanceof org.bukkit.entity.Entity shooter)source=shooter;
+        if(!active || !(source instanceof Player attacker) || !fighters.contains(attacker.getUniqueId()) || !fighters.contains(target.getUniqueId()))e.setCancelled(true);
+    }
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void place(BlockPlaceEvent e){
         if(!isActive()||!inside(e.getBlockPlaced().getLocation()))return;
         if(!participant(e.getPlayer())||!active){e.setCancelled(true);return;}
