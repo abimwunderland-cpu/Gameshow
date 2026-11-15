@@ -302,18 +302,21 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             nextMusicAt=now+8000;
         }
     }
-    /** Adventure is the default for everyone; only the two live Kit-UHC fighters may use Survival. */
+    /** Adventure applies to regular players, but never locks moderators out of Creative. */
     private boolean adventureEnabled(){return getConfig().getBoolean("settings.force-adventure",true);}
+    private boolean adventureExempt(Player player){
+        return player.isOp() || player.hasPermission("wg.admin")
+                || (gameNine!=null && gameNine.isActiveFighter(player.getUniqueId()));
+    }
     private void ensureAdventure(Player p){
-        if(!p.isOnline() || !adventureEnabled())return;
-        if(gameNine!=null && gameNine.isActiveFighter(p.getUniqueId()))return;
+        if(!p.isOnline() || !adventureEnabled() || adventureExempt(p))return;
         if(p.getGameMode()!=GameMode.ADVENTURE)p.setGameMode(GameMode.ADVENTURE);
     }
     private void ensureAdventureModes(){for(Player p:Bukkit.getOnlinePlayers())ensureAdventure(p);}
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)
     public void preventOtherGameModes(PlayerGameModeChangeEvent e){
         if(adventureEnabled() && e.getNewGameMode()!=GameMode.ADVENTURE
-            && (gameNine==null || !gameNine.isActiveFighter(e.getPlayer().getUniqueId())))e.setCancelled(true);
+            && !adventureExempt(e.getPlayer()))e.setCancelled(true);
     }
     @EventHandler public void keepAdventureOnRespawn(PlayerRespawnEvent e){
         Bukkit.getScheduler().runTaskLater(this,()->ensureAdventure(e.getPlayer()),1L);
@@ -1985,7 +1988,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
         if(cmd.equals("adventure")){
             if(!admin(sender))return true;
             if(args.length<2 || args[1].equalsIgnoreCase("status")){
-                say(sender,"Adventure-Zwang: "+(adventureEnabled()?"AKTIV":"DEAKTIVIERT")+". /wg adventure on|off|status");return true;
+                say(sender,"Adventure-Zwang: "+(adventureEnabled()?"AKTIV":"DEAKTIVIERT")+" (§aOPs und wg.admin sind ausgenommen§7). /wg adventure on|off|status");return true;
             }
             if(!args[1].equalsIgnoreCase("on") && !args[1].equalsIgnoreCase("off")){
                 say(sender,"/wg adventure on|off|status");return true;
@@ -1993,7 +1996,7 @@ public final class GameshowPlugin extends JavaPlugin implements Listener, Comman
             boolean enable=args[1].equalsIgnoreCase("on");
             getConfig().set("settings.force-adventure",enable);saveConfig();
             if(enable)ensureAdventureModes();
-            say(sender,enable?"§aAlle Spieler sind jetzt im Adventure-Modus (außer aktive Kit-UHC-Kämpfer).":"§eAdventure-Zwang für den Map-Bau vorübergehend deaktiviert.");
+            say(sender,enable?"§aAdventure aktiv für normale Spieler. §7OPs und wg.admin dürfen weiter Creative nutzen.":"§eAdventure-Zwang für alle Spieler vorübergehend deaktiviert.");
             return true;
         }
         if(cmd.equals("status")){say(sender,"Spiel "+game+(game>0?" ("+GAMES[game-1]+")":"")+", aktiv="+running+", Spielerwahl="+selectionEnabled+", Finalisten="+finalists);for(String t:teams.keySet())say(sender,t+" ("+teams.get(t).size()+"/3) | Vorrunde "+qualifying.getOrDefault(t,0)+" | Vorteile "+advantages.getOrDefault(t,0));return true;}
